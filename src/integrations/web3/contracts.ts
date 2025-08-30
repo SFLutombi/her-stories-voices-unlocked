@@ -458,6 +458,51 @@ export const getContractAddresses = async () => {
   return await integrationContract.getContractAddresses();
 };
 
+// Chapter Purchase Functions
+export const purchaseChapterOnChain = async (
+  storyId: number,
+  chapterId: number,
+  price: number
+) => {
+  if (!storyContract) throw new Error('Story contract not initialized');
+  
+  try {
+    const tx = await storyContract.purchaseChapter(
+      storyId,
+      chapterId,
+      { 
+        value: ethers.utils.parseEther(price.toString()),
+        gasLimit: 500000 
+      }
+    );
+    const receipt = await tx.wait();
+    return receipt;
+  } catch (error) {
+    console.error('Error purchasing chapter:', error);
+    throw error;
+  }
+};
+
+export const getChapterAccessOnChain = async (
+  storyId: number,
+  chapterId: number,
+  userAddress: string
+) => {
+  if (!storyContract) throw new Error('Story contract not initialized');
+  
+  try {
+    const hasAccess = await storyContract.hasChapterAccess(
+      storyId,
+      chapterId,
+      userAddress
+    );
+    return hasAccess;
+  } catch (error) {
+    console.error('Error checking chapter access:', error);
+    throw error;
+  }
+};
+
 // Export contract instances for direct access if needed
 export {
   integrationContract,

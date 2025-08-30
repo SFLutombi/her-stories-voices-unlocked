@@ -6,10 +6,13 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { Heart, BookOpen, Coins, User, Calendar, Target } from 'lucide-react';
+import { Heart, BookOpen, Coins, User, Calendar, Target, Edit } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { ChapterReader } from '@/components/ChapterReader';
+import { ChapterManager } from '@/components/ChapterManager';
+import { CoverUpload } from '@/components/CoverUpload';
 
 interface StoryDetails {
   id: string;
@@ -34,6 +37,8 @@ const StoryDetails = () => {
   const [story, setStory] = useState<StoryDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [purchasing, setPurchasing] = useState(false);
+  const [viewMode, setViewMode] = useState<'read' | 'manage'>('read');
+  const [isAuthor, setIsAuthor] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -57,6 +62,11 @@ const StoryDetails = () => {
 
       if (error) throw error;
       setStory(data);
+      
+      // Check if current user is the author
+      if (user && data.author_id === user.id) {
+        setIsAuthor(true);
+      }
     } catch (error) {
       console.error('Error fetching story:', error);
       toast({
@@ -150,8 +160,15 @@ const StoryDetails = () => {
     }
   };
 
-  const handleReadFreeChapter = (chapterId: string) => {
-    navigate(`/read/${story!.id}/${chapterId}`);
+  const handleCoverUpdated = (coverUrl: string) => {
+    if (story) {
+      setStory({ ...story, cover_image_url: coverUrl });
+    }
+  };
+
+  const handleChaptersUpdated = () => {
+    // Refresh story data to get updated chapter count
+    fetchStoryDetails();
   };
 
   if (loading) {
@@ -276,46 +293,67 @@ const StoryDetails = () => {
             </Card>
           </div>
 
-          {/* Story Details */}
-          <div className="lg:col-span-2 space-y-8">
-            <div>
-              <h1 className="text-4xl font-bold mb-4">{story.title}</h1>
-              
-              <div className="flex items-center space-x-4 mb-6">
-                <div className="flex items-center">
-                  <User className="h-4 w-4 mr-2 text-muted-foreground" />
-                  <span className="text-muted-foreground">
-                    by {story.is_anonymous ? 'Anonymous' : 'Author'}
-                  </span>
-                </div>
-              </div>
-
-              <p className="text-lg text-muted-foreground leading-relaxed">
-                {story.description}
-              </p>
-            </div>
-
-            {/* Author bio section removed - data not available */}
-
-            {/* Chapter List */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Chapters</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center py-8">
-                  <BookOpen className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <h4 className="text-lg font-medium mb-2">No Chapters Yet</h4>
-                  <p className="text-muted-foreground mb-4">
-                    This story is published but doesn't have any chapters yet.
-                  </p>
-                  <Button variant="outline" disabled>
-                    Coming Soon
+                  {/* Story Details */}
+        <div className="lg:col-span-2 space-y-8">
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <h1 className="text-4xl font-bold">{story.title}</h1>
+              {isAuthor && (
+                <div className="flex items-center space-x-2">
+                  <Button
+                    variant={viewMode === 'read' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setViewMode('read')}
+                  >
+                    <BookOpen className="h-4 w-4 mr-2" />
+                    Read
+                  </Button>
+                  <Button
+                    variant={viewMode === 'manage' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setViewMode('manage')}
+                  >
+                    <Edit className="h-4 w-4 mr-2" />
+                    Manage
                   </Button>
                 </div>
-              </CardContent>
-            </Card>
+              )}
+            </div>
+            
+            <div className="flex items-center space-x-4 mb-6">
+              <div className="flex items-center">
+                <User className="h-4 w-4 mr-2 text-muted-foreground" />
+                <span className="text-muted-foreground">
+                  by {story.is_anonymous ? 'Anonymous' : 'Author'}
+                </span>
+              </div>
+            </div>
+
+            <p className="text-lg text-muted-foreground leading-relaxed">
+              {story.description}
+            </p>
           </div>
+
+          {/* Content based on view mode */}
+          {viewMode === 'read' ? (
+            <ChapterReader 
+              storyId={story.id} 
+              onPurchaseComplete={handleChaptersUpdated}
+            />
+          ) : (
+            <div className="space-y-6">
+              <CoverUpload
+                storyId={story.id}
+                currentCoverUrl={story.cover_image_url}
+                onCoverUpdated={handleCoverUpdated}
+              />
+              <ChapterManager
+                storyId={story.id}
+                onChaptersUpdated={handleChaptersUpdated}
+              />
+            </div>
+          )}
+        </div>
         </div>
       </div>
 

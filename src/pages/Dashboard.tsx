@@ -36,6 +36,8 @@ import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { Navigation } from '@/components/Navigation';
 import { Footer } from '@/components/Footer';
+import { ChapterManager } from '@/components/ChapterManager';
+import { CoverUpload } from '@/components/CoverUpload';
 
 interface Story {
   id: string;
@@ -64,6 +66,7 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState('overview');
+  const [autoOpenStoryId, setAutoOpenStoryId] = useState<string | null>(null);
   
   // Web3 integration
   const { 
@@ -714,9 +717,10 @@ const Dashboard = () => {
         {renderWeb3Status()}
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6 mt-6">
-          <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:grid-cols-5">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="stories">Stories</TabsTrigger>
+            <TabsTrigger value="chapters">Chapters</TabsTrigger>
             <TabsTrigger value="create">Create</TabsTrigger>
             <TabsTrigger value="analytics">Analytics</TabsTrigger>
           </TabsList>
@@ -772,8 +776,30 @@ const Dashboard = () => {
             {/* Recent Stories */}
             <Card>
               <CardHeader>
-                <CardTitle>Recent Stories</CardTitle>
-                <CardDescription>Your latest published content</CardDescription>
+                <div className="flex justify-between items-center">
+                  <div>
+                    <CardTitle>Recent Stories</CardTitle>
+                    <CardDescription>Your latest published content</CardDescription>
+                  </div>
+                  <div className="flex space-x-2">
+                    <Button 
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setActiveTab('chapters')}
+                    >
+                      <BookOpen className="h-4 w-4 mr-2" />
+                      Manage All Chapters
+                    </Button>
+                    <Button 
+                      variant="default"
+                      size="sm"
+                      onClick={() => setActiveTab('create')}
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Create Story
+                    </Button>
+                  </div>
+                </div>
               </CardHeader>
               <CardContent>
                 {stories.length === 0 ? (
@@ -801,8 +827,33 @@ const Dashboard = () => {
                           <Badge variant={story.published ? "default" : "secondary"}>
                             {story.published ? "Published" : "Draft"}
                           </Badge>
-                          <Button variant="outline" size="sm">
-                            <Edit className="h-4 w-4" />
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => navigate(`/story/${story.id}`)}
+                          >
+                            <Eye className="h-4 w-4 mr-2" />
+                            View
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => setActiveTab('chapters')}
+                          >
+                            <BookOpen className="h-4 w-4 mr-2" />
+                            Chapters
+                          </Button>
+                          <Button 
+                            variant="default" 
+                            size="sm"
+                            onClick={() => {
+                              setActiveTab('chapters');
+                              setAutoOpenStoryId(story.id);
+                              setTimeout(() => setAutoOpenStoryId(null), 100);
+                            }}
+                          >
+                            <Plus className="h-4 w-4 mr-2" />
+                            Add Chapter
                           </Button>
                         </div>
                       </div>
@@ -816,10 +867,33 @@ const Dashboard = () => {
           <TabsContent value="stories" className="space-y-6">
             <div className="flex justify-between items-center">
               <h2 className="text-2xl font-bold">My Stories</h2>
-              <Button onClick={() => setActiveTab('create')}>
-                <Plus className="h-4 w-4 mr-2" />
-                New Story
-              </Button>
+              <div className="flex space-x-2">
+                <Button 
+                  variant="outline"
+                  onClick={() => setActiveTab('chapters')}
+                >
+                  <BookOpen className="h-4 w-4 mr-2" />
+                  Manage Chapters
+                </Button>
+                <Button onClick={() => setActiveTab('create')}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  New Story
+                </Button>
+                <Button 
+                  variant="default"
+                  onClick={() => {
+                    setActiveTab('chapters');
+                    // Auto-open the first story's chapter manager
+                    if (stories.length > 0) {
+                      setAutoOpenStoryId(stories[0].id);
+                      setTimeout(() => setAutoOpenStoryId(null), 100);
+                    }
+                  }}
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Quick Add Chapter
+                </Button>
+              </div>
             </div>
 
             <div className="grid gap-6">
@@ -834,13 +908,37 @@ const Dashboard = () => {
                         </CardDescription>
                       </div>
                       <div className="flex space-x-2">
-                        <Button variant="outline" size="sm">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => navigate(`/story/${story.id}`)}
+                        >
                           <Eye className="h-4 w-4 mr-2" />
                           View
                         </Button>
                         <Button variant="outline" size="sm">
                           <Edit className="h-4 w-4 mr-2" />
                           Edit
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => setActiveTab('chapters')}
+                        >
+                          <BookOpen className="h-4 w-4 mr-2" />
+                          Chapters
+                        </Button>
+                        <Button 
+                          variant="default" 
+                          size="sm"
+                          onClick={() => {
+                            setActiveTab('chapters');
+                            setAutoOpenStoryId(story.id);
+                            setTimeout(() => setAutoOpenStoryId(null), 100);
+                          }}
+                        >
+                          <Plus className="h-4 w-4 mr-2" />
+                          Add Chapter
                         </Button>
                       </div>
                     </div>
@@ -860,6 +958,134 @@ const Dashboard = () => {
                 </Card>
               ))}
             </div>
+          </TabsContent>
+
+          <TabsContent value="chapters" className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h2 className="text-2xl font-bold">Chapter Management</h2>
+              <div className="flex items-center space-x-4">
+                <div className="text-sm text-muted-foreground">
+                  Select a story to manage its chapters
+                </div>
+                {stories.length > 0 ? (
+                  <div className="flex space-x-2">
+                    <Button 
+                      variant="outline"
+                      onClick={() => {
+                        // Scroll to the first story's chapter manager
+                        const firstStoryElement = document.querySelector('[data-story-id]');
+                        if (firstStoryElement) {
+                          firstStoryElement.scrollIntoView({ behavior: 'smooth' });
+                        }
+                      }}
+                    >
+                      <BookOpen className="h-4 w-4 mr-2" />
+                      Quick Start
+                    </Button>
+                    <Button 
+                      variant="default"
+                      onClick={() => {
+                        // Auto-open the first story's chapter manager
+                        setAutoOpenStoryId(stories[0].id);
+                        setTimeout(() => setAutoOpenStoryId(null), 100);
+                      }}
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Quick Add Chapter
+                    </Button>
+                  </div>
+                ) : (
+                  <Button 
+                    onClick={() => setActiveTab('create')}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create Your First Story
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            {stories.length === 0 ? (
+              <Card>
+                <CardContent className="text-center py-8">
+                  <BookOpen className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                  <h3 className="text-lg font-semibold mb-2">No Stories Yet</h3>
+                  <p className="text-muted-foreground mb-4">
+                    Create your first story to start adding chapters
+                  </p>
+                  <div className="flex space-x-2 justify-center">
+                    <Button onClick={() => setActiveTab('create')}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Create Story
+                    </Button>
+                    <Button 
+                      variant="outline"
+                      onClick={() => setActiveTab('overview')}
+                    >
+                      <BookOpen className="h-4 w-4 mr-2" />
+                      View Dashboard
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid gap-6">
+                {stories.map((story) => (
+                  <Card key={story.id} data-story-id={story.id}>
+                    <CardHeader>
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <CardTitle>{story.title}</CardTitle>
+                          <CardDescription className="mt-2">
+                            {story.description}
+                          </CardDescription>
+                        </div>
+                        <div className="text-right">
+                          <Badge variant={story.published ? "default" : "secondary"} className="mb-2">
+                            {story.published ? "Published" : "Draft"}
+                          </Badge>
+                          <div className="text-sm text-muted-foreground">
+                            {story.total_chapters} chapters • {story.price_per_chapter} credits/chapter
+                          </div>
+                          <div className="flex space-x-2 mt-2">
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => navigate(`/story/${story.id}`)}
+                            >
+                              <Eye className="h-4 w-4 mr-2" />
+                              View Story
+                            </Button>
+                            <Button 
+                              variant="default" 
+                              size="sm"
+                              onClick={() => {
+                                setAutoOpenStoryId(story.id);
+                                // Reset after a short delay to allow the component to re-render
+                                setTimeout(() => setAutoOpenStoryId(null), 100);
+                              }}
+                            >
+                              <Plus className="h-4 w-4 mr-2" />
+                              Add Chapter
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <ChapterManager 
+                        storyId={story.id} 
+                        autoOpen={autoOpenStoryId === story.id}
+                        onChaptersUpdated={() => {
+                          // Refresh stories to update chapter counts
+                          fetchAuthorData();
+                        }}
+                      />
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent value="create" className="space-y-6">
