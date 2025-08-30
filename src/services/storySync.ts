@@ -47,13 +47,26 @@ export const createStory = async (
     // For now, we'll use a placeholder - you'll need to implement this based on your contract events
     const blockchainStoryId = blockchainTx.events?.find(e => e.event === 'StoryCreated')?.args?.storyId || '1';
 
-    // Create story in Supabase database
+    // Find the category ID from the category name
+    const { data: categoryData, error: categoryError } = await supabase
+      .from('categories')
+      .select('id')
+      .eq('name', storyData.category)
+      .single();
+
+    if (categoryError || !categoryData) {
+      console.error('Category not found:', storyData.category);
+      return { success: false, error: `Category "${storyData.category}" not found in database` };
+    }
+
+    // Create story in Supabase database with proper category_id
     const { data: dbStory, error: dbError } = await supabase
       .from('stories')
       .insert({
         title: storyData.title,
         description: storyData.description,
         author_id: authorId,
+        category_id: categoryData.id, // ✅ Now properly setting category_id
         price_per_chapter: storyData.pricePerChapter,
         impact_percentage: storyData.impactPercentage,
         is_anonymous: storyData.isAnonymous,
@@ -77,6 +90,13 @@ export const createStory = async (
         blockchain_tx_hash: blockchainTx.transactionHash 
       })
       .eq('id', dbStory.id);
+
+    console.log('Story created successfully:', {
+      storyId: dbStory.id,
+      blockchainId: blockchainStoryId,
+      categoryId: categoryData.id,
+      categoryName: storyData.category
+    });
 
     return { success: true, storyId: dbStory.id };
   } catch (error) {

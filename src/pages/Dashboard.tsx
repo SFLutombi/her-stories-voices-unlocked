@@ -45,9 +45,9 @@ interface Story {
   price_per_chapter: number;
   published: boolean;
   created_at: string;
-  category: {
+  category?: {
     name: string;
-  };
+  } | null;
 }
 
 interface Analytics {
@@ -203,14 +203,50 @@ const Dashboard = () => {
 
   // Check if user is registered as author on blockchain
   const checkAuthorRegistration = async () => {
-    if (!isConnected || !contractsInitialized || !account) return;
+    if (!isConnected || !contractsInitialized || !account) {
+      console.log('checkAuthorRegistration: Missing requirements:', { 
+        isConnected, 
+        contractsInitialized, 
+        account 
+      });
+      return;
+    }
     
     try {
+      console.log('checkAuthorRegistration: Checking author status for account:', account);
       const { getUserProfileOnChain } = await import('@/integrations/web3/contracts');
       const profile = await getUserProfileOnChain(account);
-      // If we can get the profile, user is registered
-      setIsAuthorRegistered(true);
+      console.log('checkAuthorRegistration: Author profile found:', profile);
+      
+      // Check if this is actually a valid, active author profile
+      // The profile should have a valid author address (not zero address) and be active
+      if (profile && 
+          profile.author && 
+          profile.author !== '0x0000000000000000000000000000000000000000' && 
+          profile.author.toLowerCase() === account.toLowerCase() &&
+          profile.isActive) {
+        console.log('checkAuthorRegistration: Valid active author profile found');
+        setIsAuthorRegistered(true);
+        
+        // Show success message if this is the first time we're detecting registration
+        if (!isAuthorRegistered) {
+          toast({
+            title: "Author Status Confirmed! 🎉",
+            description: "You are registered as an author on the blockchain and can create stories.",
+          });
+        }
+      } else {
+        console.log('checkAuthorRegistration: Profile found but not a valid active author:', {
+          requestedAccount: account,
+          profileAuthor: profile?.author,
+          isActive: profile?.isActive,
+          pseudonym: profile?.pseudonym,
+          addressesMatch: profile?.author?.toLowerCase() === account?.toLowerCase()
+        });
+        setIsAuthorRegistered(false);
+      }
     } catch (error) {
+      console.log('checkAuthorRegistration: User not registered as author:', error);
       // User is not registered as author
       setIsAuthorRegistered(false);
     }
@@ -230,22 +266,30 @@ const Dashboard = () => {
 
     setLoading(true);
     try {
-      // Fetch author's stories
+      // Fetch author's stories with comprehensive data including categories
       const { data: storiesData } = await supabase
         .from('stories')
         .select(`
           *,
-          category:categories(name)
+          category:categories(id, name, description)
         `)
         .eq('author_id', user.id)
         .order('created_at', { ascending: false });
 
       if (storiesData) {
-        setStories(storiesData);
+        console.log('Fetched stories data:', storiesData);
+        
+        // Ensure all stories have category information
+        const validStories = storiesData.map(story => ({
+          ...story,
+          category: story.category || { name: 'Uncategorized', id: null, description: null }
+        }));
+        
+        setStories(validStories);
         
         // Calculate author statistics
-        const totalChapters = storiesData.reduce((sum, story) => sum + (story.total_chapters || 0), 0);
-        const totalReaders = storiesData.reduce((sum, story) => sum + 0, 0); // reader_count not available yet
+        const totalChapters = validStories.reduce((sum, story) => sum + (story.total_chapters || 0), 0);
+        const totalReaders = validStories.reduce((sum, story) => sum + 0, 0); // reader_count not available yet
         
         setAuthorStats({
           totalReaders,
@@ -295,6 +339,17 @@ const Dashboard = () => {
       return;
     }
 
+    // Check if user is registered as author on blockchain
+    if (!isAuthorRegistered) {
+      toast({
+        variant: "destructive",
+        title: "Author Registration Required",
+        description: "You must register as an author on the blockchain before creating stories. Please use the 'Register as Author' button above.",
+      });
+      setCreatingStory(false);
+      return;
+    }
+
     setCreatingStory(true);
 
     try {
@@ -309,7 +364,7 @@ const Dashboard = () => {
         {
           title: newStory.title,
           description: newStory.description,
-          category: category.name,
+          category: category.name, // Pass category name for blockchain
           pricePerChapter: newStory.price_per_chapter,
           impactPercentage: newStory.impact_percentage,
           isAnonymous: newStory.is_anonymous,
@@ -510,17 +565,28 @@ const Dashboard = () => {
                 {!contractsInitialized && (
                   <p className="mt-1 text-red-600">⚠️ Smart contracts are still initializing. Please wait...</p>
                 )}
-                <Button 
-                  onClick={registerAuthorOnBlockchain}
-                  disabled={isRegisteringAuthor || !contractsInitialized}
-                  variant="outline"
-                  size="sm"
-                  className="mt-2 w-full bg-orange-50 hover:bg-orange-100"
-                >
-                  {isRegisteringAuthor ? 'Registering...' : 
-                   !contractsInitialized ? 'Waiting for Contracts...' : 
-                   'Register as Author'}
-                </Button>
+                <div className="flex space-x-2 mt-2">
+                  <Button 
+                    onClick={registerAuthorOnBlockchain}
+                    disabled={isRegisteringAuthor || !contractsInitialized}
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 bg-orange-50 hover:bg-orange-100"
+                  >
+                    {isRegisteringAuthor ? 'Registering...' : 
+                     !contractsInitialized ? 'Waiting for Contracts...' : 
+                     'Register as Author'}
+                  </Button>
+                  <Button 
+                    onClick={checkAuthorRegistration}
+                    disabled={!contractsInitialized}
+                    variant="outline"
+                    size="sm"
+                    className="text-xs"
+                  >
+                    Check Status
+                  </Button>
+                </div>
               </div>
             )}
             
@@ -547,6 +613,48 @@ const Dashboard = () => {
             Manage your stories and track your impact
           </p>
         </div>
+
+        {/* Debug Info - Author Registration Status */}
+        {isConnected && contractsInitialized && (
+          <Card className="mb-4 border-blue-200 bg-blue-50">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm flex items-center text-blue-800">
+                <div className="w-2 h-2 rounded-full mr-2 bg-blue-500" />
+                Author Registration Status
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <div className="text-sm text-blue-700 space-y-2">
+                <p><strong>Wallet:</strong> {account?.slice(0, 6)}...{account?.slice(-4)}</p>
+                <p><strong>Network:</strong> {network}</p>
+                <p><strong>Contracts Ready:</strong> {contractsInitialized ? '✅ Yes' : '❌ No'}</p>
+                <p><strong>Author Registered:</strong> {isAuthorRegistered ? '✅ Yes' : '❌ No'}</p>
+                <p><strong>Profile is_author:</strong> {profile?.is_author ? '✅ Yes' : '❌ No'}</p>
+              </div>
+              <div className="mt-3 flex space-x-2">
+                <Button
+                  onClick={checkAuthorRegistration}
+                  variant="outline"
+                  size="sm"
+                  className="text-xs"
+                >
+                  Refresh Status
+                </Button>
+                {!isAuthorRegistered && (
+                  <Button
+                    onClick={registerAuthorOnBlockchain}
+                    disabled={isRegisteringAuthor}
+                    variant="outline"
+                    size="sm"
+                    className="text-xs bg-orange-50 hover:bg-orange-100"
+                  >
+                    {isRegisteringAuthor ? 'Registering...' : 'Register Now'}
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Web3 Status */}
         {currentNetworkStatus && (
@@ -686,7 +794,7 @@ const Dashboard = () => {
                         <div>
                           <h4 className="font-semibold">{story.title}</h4>
                           <p className="text-sm text-muted-foreground">
-                            {story.category.name} • {story.total_chapters} chapters
+                            {story.category?.name || 'Uncategorized'} • {story.total_chapters} chapters
                           </p>
                         </div>
                         <div className="flex items-center space-x-2">
@@ -740,7 +848,7 @@ const Dashboard = () => {
                   <CardContent>
                     <div className="flex justify-between items-center">
                       <div className="flex space-x-6 text-sm text-muted-foreground">
-                        <span>{story.category.name}</span>
+                        <span>{story.category?.name || 'Uncategorized'}</span>
                         <span>{story.total_chapters} chapters</span>
                         <span>{story.price_per_chapter} credits/chapter</span>
                       </div>

@@ -1,25 +1,29 @@
-import { useState, useEffect } from 'react';
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Heart, BookOpen, Eye, User, Shield, Wallet } from "lucide-react";
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useProfile } from '@/hooks/useProfile';
-import { useToast } from '@/hooks/use-toast';
+import { useWeb3 } from '@/contexts/Web3Context';
 import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Navigation } from '@/components/Navigation';
+import { Footer } from '@/components/Footer';
+import { useNavigate } from 'react-router-dom';
+import { Wallet, AlertCircle, CheckCircle, Loader2, Eye, BookOpen, Heart, Shield } from 'lucide-react';
 
 export const ProfileSetup = () => {
-  const navigate = useNavigate();
   const { user } = useAuth();
-  const { updateProfile } = useProfile();
+  const { isConnected, contractsInitialized, account } = useWeb3();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [registeringAuthor, setRegisteringAuthor] = useState(false);
+  const [authorRegistered, setAuthorRegistered] = useState(false);
+
   const [profileData, setProfileData] = useState({
     displayName: '',
     bio: '',
@@ -54,6 +58,69 @@ export const ProfileSetup = () => {
     }
   }, []);
 
+  // Check if user is already registered as author on blockchain
+  useEffect(() => {
+    if (isConnected && contractsInitialized && account && profileData.role === 'writer') {
+      checkAuthorRegistration();
+    }
+  }, [isConnected, contractsInitialized, account, profileData.role]);
+
+  const checkAuthorRegistration = async () => {
+    try {
+      const { getUserProfileOnChain } = await import('@/integrations/web3/contracts');
+      const profile = await getUserProfileOnChain(account);
+      
+      // Check if this is actually a valid, active author profile
+      if (profile && 
+          profile.author && 
+          profile.author !== '0x0000000000000000000000000000000000000000' && 
+          profile.author.toLowerCase() === account.toLowerCase() &&
+          profile.isActive) {
+        setAuthorRegistered(true);
+      } else {
+        setAuthorRegistered(false);
+      }
+    } catch (error) {
+      setAuthorRegistered(false);
+    }
+  };
+
+  const registerAuthorOnBlockchain = async () => {
+    if (!isConnected || !contractsInitialized || !account) {
+      toast({
+        variant: "destructive",
+        title: "Web3 Connection Required",
+        description: "Please ensure your MetaMask wallet is connected and on the correct network.",
+      });
+      return;
+    }
+
+    setRegisteringAuthor(true);
+    try {
+      const { registerAuthorOnChain } = await import('@/integrations/web3/contracts');
+      const pseudonym = profileData.displayName || 'Anonymous Author';
+      const impactPercentage = profileData.impactPercentage || 10;
+
+      const tx = await registerAuthorOnChain(pseudonym, impactPercentage);
+      
+      toast({
+        title: "Author Registration Successful! 🎉",
+        description: "You've been registered as an author on the blockchain. Transaction hash: " + tx.transactionHash.slice(0, 10) + "...",
+      });
+
+      setAuthorRegistered(true);
+    } catch (error: any) {
+      console.error('Failed to register author:', error);
+      toast({
+        variant: "destructive",
+        title: "Registration Failed",
+        description: error.message || 'Failed to register as author on blockchain',
+      });
+    } finally {
+      setRegisteringAuthor(false);
+    }
+  };
+
   // Get current wallet information for authors
   useEffect(() => {
     const getWalletInfo = async () => {
@@ -85,6 +152,49 @@ export const ProfileSetup = () => {
 
     getWalletInfo();
   }, [profileData.role]);
+
+  // Connect MetaMask wallet
+  const connectMetaMask = async () => {
+    if (typeof window === 'undefined' || !window.ethereum) {
+      toast({
+        variant: "destructive",
+        title: "MetaMask Not Found",
+        description: "Please install MetaMask extension to continue.",
+      });
+      return;
+    }
+
+    try {
+      // Request account access
+      const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+      const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+      
+      if (accounts.length > 0) {
+        setProfileData(prev => ({
+          ...prev,
+          walletAddress: accounts[0],
+          walletData: {
+            account: accounts[0],
+            chainId: chainId,
+            connectedAt: new Date().toISOString(),
+            networkName: getNetworkName(chainId)
+          }
+        }));
+        
+        toast({
+          title: "Wallet Connected! 🎉",
+          description: `Connected to ${accounts[0].slice(0, 6)}...${accounts[0].slice(-4)}`,
+        });
+      }
+    } catch (error: any) {
+      console.error('Failed to connect MetaMask:', error);
+      toast({
+        variant: "destructive",
+        title: "Connection Failed",
+        description: error.message || 'Failed to connect MetaMask wallet',
+      });
+    }
+  };
 
   // Helper function to get network name from chain ID
   const getNetworkName = (chainId: string) => {
@@ -127,6 +237,16 @@ export const ProfileSetup = () => {
   const handleComplete = async () => {
     if (!user) return;
 
+    // For authors, require blockchain registration first
+    if (profileData.role === 'writer' && !authorRegistered) {
+      toast({
+        variant: "destructive",
+        title: "Author Registration Required",
+        description: "Please complete your blockchain author registration before continuing.",
+      });
+      return;
+    }
+
     setLoading(true);
     try {
       // First, check if a profile already exists
@@ -149,7 +269,7 @@ export const ProfileSetup = () => {
           .update({
             display_name: profileData.displayName,
             bio: profileData.bio,
-            is_author: profileData.isAuthor || profileData.role === 'writer' || profileData.role === 'both',
+            is_author: profileData.role === 'writer' || profileData.role === 'both',
             is_anonymous: profileData.isAnonymous,
             pseudonym: profileData.isAnonymous ? profileData.anonymousName : null,
             wallet_address: profileData.walletAddress,
@@ -168,7 +288,7 @@ export const ProfileSetup = () => {
             user_id: user.id,
             display_name: profileData.displayName,
             bio: profileData.bio,
-            is_author: profileData.isAuthor || profileData.role === 'writer' || profileData.role === 'both',
+            is_author: profileData.role === 'writer' || profileData.role === 'both',
             is_anonymous: profileData.isAnonymous,
             pseudonym: profileData.isAnonymous ? profileData.anonymousName : null,
             wallet_address: profileData.walletAddress,
@@ -180,9 +300,9 @@ export const ProfileSetup = () => {
       }
 
       // If author, create/update author profile
-      if (profileData.isAuthor || profileData.role === 'writer' || profileData.role === 'both') {
+      if (profileData.role === 'writer' || profileData.role === 'both') {
         console.log('Creating/updating author profile');
-        
+
         const { error: authorError } = await supabase
           .from('author_profiles')
           .upsert({
@@ -347,46 +467,124 @@ export const ProfileSetup = () => {
           />
         </div>
 
-        {(profileData.role === 'writer' || profileData.role === 'both') && (
-          <>
-            <div className="flex items-center space-x-2">
-              <Switch
-                id="anonymous"
-                checked={profileData.isAnonymous}
-                onCheckedChange={(checked) => setProfileData({...profileData, isAnonymous: checked})}
-              />
-              <Label htmlFor="anonymous">Enable Anonymous Mode</Label>
-            </div>
-
-            {profileData.isAnonymous && (
-              <div>
-                <Label htmlFor="anonymousName">Anonymous Pen Name</Label>
-                <Input
-                  id="anonymousName"
-                  value={profileData.anonymousName}
-                  onChange={(e) => setProfileData({...profileData, anonymousName: e.target.value})}
-                  placeholder="Choose a pen name for sensitive content"
-                />
-                <p className="text-sm text-muted-foreground mt-1">
-                  This name will be used when you publish anonymous stories
-                </p>
-              </div>
-            )}
-
-            {profileData.walletAddress && (
-              <div>
-                <Label>Connected Wallet</Label>
-                <div className="flex items-center space-x-2 p-2 bg-muted rounded border">
-                  <Wallet className="h-4 w-4 text-primary" />
-                  <span className="text-sm font-mono">
-                    {profileData.walletAddress.slice(0, 6)}...{profileData.walletAddress.slice(-4)}
-                  </span>
+                    {(profileData.role === 'writer' || profileData.role === 'both') && (
+              <>
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="anonymous"
+                    checked={profileData.isAnonymous}
+                    onCheckedChange={(checked) => setProfileData({...profileData, isAnonymous: checked})}
+                  />
+                  <Label htmlFor="anonymous">Enable Anonymous Mode</Label>
                 </div>
-                <p className="text-sm text-muted-foreground mt-1">
-                  This wallet will be used for receiving payments from readers
-                </p>
+
+                {profileData.isAnonymous && (
+                  <div>
+                    <Label htmlFor="anonymousName">Anonymous Pen Name</Label>
+                    <Input
+                      id="anonymousName"
+                      value={profileData.anonymousName}
+                      onChange={(e) => setProfileData({...profileData, anonymousName: e.target.value})}
+                      placeholder="Choose a pen name for sensitive content"
+                    />
+                    <p className="text-sm text-muted-foreground mt-1">
+                      This name will be used when you publish anonymous stories
+                    </p>
+                  </div>
+                )}
+
+                {/* MetaMask Connection Section */}
+                <div className="space-y-3 p-4 bg-gray-50 rounded-lg border">
+                  <div className="flex items-center space-x-2">
+                    <Wallet className="h-5 w-5 text-primary" />
+                    <h4 className="text-md font-semibold">MetaMask Wallet</h4>
+                  </div>
+                  
+                  {!profileData.walletAddress ? (
+                    <div className="space-y-3">
+                      <p className="text-sm text-muted-foreground">
+                        Connect your MetaMask wallet to receive payments from readers
+                      </p>
+                      <Button
+                        onClick={connectMetaMask}
+                        className="w-full bg-orange-600 hover:bg-orange-700"
+                      >
+                        <Wallet className="h-4 w-4 mr-2" />
+                        Connect MetaMask
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <Label>Connected Wallet</Label>
+                      <div className="flex items-center space-x-2 p-2 bg-muted rounded border">
+                        <Wallet className="h-4 w-4 text-primary" />
+                        <span className="text-sm font-mono">
+                          {profileData.walletAddress.slice(0, 6)}...{profileData.walletAddress.slice(-4)}
+                        </span>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        Network: {profileData.walletData.networkName}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        This wallet will be used for receiving payments from readers
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+            {/* Blockchain Author Registration */}
+            <div className="space-y-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+              <div className="flex items-center space-x-2">
+                <Wallet className="h-5 w-5 text-blue-600" />
+                <h4 className="text-md font-semibold text-blue-800">Blockchain Registration</h4>
               </div>
-            )}
+              
+              <p className="text-sm text-blue-700">
+                To publish stories and earn from readers, you need to register as an author on the blockchain.
+              </p>
+
+              {!isConnected ? (
+                <div className="text-sm text-red-600 bg-red-100 p-3 rounded">
+                  <p className="font-medium">⚠️ MetaMask Not Connected</p>
+                  <p>Please connect your MetaMask wallet to continue with author registration.</p>
+                </div>
+              ) : !contractsInitialized ? (
+                <div className="text-sm text-yellow-600 bg-yellow-100 p-3 rounded">
+                  <p className="font-medium">⏳ Smart Contracts Loading</p>
+                  <p>Please wait while we connect to the blockchain...</p>
+                </div>
+              ) : authorRegistered ? (
+                <div className="text-sm text-green-600 bg-green-100 p-3 rounded flex items-center space-x-2">
+                  <CheckCircle className="h-4 w-4" />
+                  <span className="font-medium">✓ Author Registered on Blockchain</span>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="text-sm text-blue-600 bg-blue-100 p-3 rounded">
+                    <p className="font-medium">Ready to Register</p>
+                    <p>Click the button below to register as an author on the blockchain. MetaMask will open for transaction approval.</p>
+                  </div>
+                  
+                  <Button
+                    onClick={registerAuthorOnBlockchain}
+                    disabled={registeringAuthor}
+                    className="w-full bg-blue-600 hover:bg-blue-700"
+                  >
+                    {registeringAuthor ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Registering on Blockchain...
+                      </>
+                    ) : (
+                      <>
+                        <Wallet className="h-4 w-4 mr-2" />
+                        Register as Author on Blockchain
+                      </>
+                    )}
+                  </Button>
+                </div>
+              )}
+            </div>
           </>
         )}
       </div>

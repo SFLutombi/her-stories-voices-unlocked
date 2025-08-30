@@ -98,7 +98,7 @@ ALTER TABLE author_profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE transactions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_credits ENABLE ROW LEVEL SECURITY;
 
--- Drop existing policies if they exist
+-- Drop existing policies if they exist (fully idempotent)
 DROP POLICY IF EXISTS "Users can view own author profile" ON author_profiles;
 DROP POLICY IF EXISTS "Users can insert own author profile" ON author_profiles;
 DROP POLICY IF EXISTS "Users can update own author profile" ON author_profiles;
@@ -107,6 +107,7 @@ DROP POLICY IF EXISTS "Users can view own transactions" ON transactions;
 DROP POLICY IF EXISTS "Users can insert own transactions" ON transactions;
 
 DROP POLICY IF EXISTS "Users can view own credits" ON user_credits;
+DROP POLICY IF EXISTS "Users can insert own credits" ON user_credits;
 DROP POLICY IF EXISTS "Users can update own credits" ON user_credits;
 
 -- Author profiles: Users can only see their own profile
@@ -208,4 +209,139 @@ BEGIN
   RAISE NOTICE 'Tables created: author_profiles, transactions, user_credits';
   RAISE NOTICE 'Functions created: update_user_credits, update_author_earnings';
   RAISE NOTICE 'RLS policies enabled on all new tables';
+END $$;
+
+-- 13. Database Relationship Verification and Fixes
+-- This section ensures proper relationships between stories and categories
+
+-- Check if stories table has category_id column
+DO $$ 
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'stories' AND column_name = 'category_id'
+  ) THEN
+    ALTER TABLE stories ADD COLUMN category_id UUID REFERENCES categories(id);
+    RAISE NOTICE 'Added category_id column to stories table';
+  ELSE
+    RAISE NOTICE 'Column category_id already exists in stories table';
+  END IF;
+END $$;
+
+-- Verify foreign key constraint exists
+DO $$ 
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.table_constraints 
+    WHERE constraint_name = 'stories_category_id_fkey' 
+    AND table_name = 'stories'
+  ) THEN
+    ALTER TABLE stories ADD CONSTRAINT stories_category_id_fkey 
+    FOREIGN KEY (category_id) REFERENCES categories(id);
+    RAISE NOTICE 'Added foreign key constraint for stories.category_id';
+  ELSE
+    RAISE NOTICE 'Foreign key constraint stories_category_id_fkey already exists';
+  END IF;
+END $$;
+
+-- Create index on category_id for better performance
+CREATE INDEX IF NOT EXISTS idx_stories_category_id ON stories(category_id);
+
+-- Ensure categories table has proper data
+INSERT INTO categories (name, description) VALUES
+  ('Survivor Stories', 'Personal accounts of overcoming challenges and trauma'),
+  ('Life Lessons', 'Wisdom and insights from life experiences'),
+  ('Fiction & Novels', 'Creative storytelling and imaginative narratives'),
+  ('Poetry & Reflections', 'Poetic expressions and personal reflections'),
+  ('Healing Journeys', 'Stories of recovery and personal growth'),
+  ('Cultural Heritage', 'Traditions, customs, and cultural experiences'),
+  ('Professional Growth', 'Career development and workplace experiences'),
+  ('Family & Relationships', 'Stories about family dynamics and relationships')
+ON CONFLICT (name) DO NOTHING;
+
+-- Create a view to easily see stories with their categories
+CREATE OR REPLACE VIEW stories_with_categories AS
+SELECT 
+  s.id,
+  s.title,
+  s.description,
+  s.author_id,
+  s.category_id,
+  c.name as category_name,
+  s.price_per_chapter,
+  s.impact_percentage,
+  s.is_anonymous,
+  s.published,
+  s.total_chapters,
+  s.created_at,
+  s.updated_at,
+  p.display_name as author_name,
+  p.is_anonymous as author_anonymous
+FROM stories s
+LEFT JOIN categories c ON s.category_id = c.id
+LEFT JOIN profiles p ON s.author_id = p.user_id;
+
+-- Grant permissions on the view
+GRANT SELECT ON stories_with_categories TO authenticated;
+
+-- Create function to get stories by category
+CREATE OR REPLACE FUNCTION get_stories_by_category(category_name_param TEXT)
+RETURNS TABLE (
+  story_id UUID,
+  title TEXT,
+  description TEXT,
+  category_name TEXT,
+  author_name TEXT,
+  price_per_chapter INTEGER,
+  total_chapters INTEGER,
+  published BOOLEAN,
+  created_at TIMESTAMP WITH TIME ZONE
+) AS $$
+BEGIN
+  RETURN QUERY
+  SELECT 
+    s.id,
+    s.title,
+    s.description,
+    c.name,
+    p.display_name,
+    s.price_per_chapter,
+    s.total_chapters,
+    s.published,
+    s.created_at
+  FROM stories s
+  JOIN categories c ON s.category_id = c.id
+  JOIN profiles p ON s.author_id = p.user_id
+  WHERE c.name = category_name_param
+  ORDER BY s.created_at DESC;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Grant execute permission on the function
+GRANT EXECUTE ON FUNCTION get_stories_by_category(TEXT) TO authenticated;
+
+-- Final verification
+DO $$
+DECLARE
+  stories_count INTEGER;
+  categories_count INTEGER;
+  stories_with_categories_count INTEGER;
+BEGIN
+  SELECT COUNT(*) INTO stories_count FROM stories;
+  SELECT COUNT(*) INTO categories_count FROM categories;
+  SELECT COUNT(*) INTO stories_with_categories_count FROM stories WHERE category_id IS NOT NULL;
+  
+  RAISE NOTICE 'Database verification completed:';
+  RAISE NOTICE 'Total stories: %', stories_count;
+  RAISE NOTICE 'Total categories: %', categories_count;
+  RAISE NOTICE 'Stories with categories: %', stories_with_categories_count;
+  RAISE NOTICE 'Stories without categories: %', (stories_count - stories_with_categories_count);
+  
+  IF stories_count > 0 AND stories_with_categories_count = 0 THEN
+    RAISE NOTICE 'WARNING: No stories have category assignments!';
+  ELSIF stories_count > 0 AND stories_with_categories_count < stories_count THEN
+    RAISE NOTICE 'WARNING: Some stories are missing category assignments!';
+  ELSE
+    RAISE NOTICE 'SUCCESS: All stories have proper category relationships!';
+  END IF;
 END $$;

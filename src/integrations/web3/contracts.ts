@@ -260,9 +260,9 @@ export const createStoryOnChain = async (
   impactPercentage: number,
   isAnonymous: boolean
 ) => {
-  if (!integrationContract) throw new Error('Contracts not initialized');
+  if (!storyContract) throw new Error('Story contract not initialized');
   
-  const tx = await integrationContract.createStoryIntegrated(
+  const tx = await storyContract.createStory(
     title,
     description,
     category,
@@ -278,9 +278,9 @@ export const registerAuthorOnChain = async (
   pseudonym: string,
   impactPercentage: number
 ) => {
-  if (!integrationContract) throw new Error('Contracts not initialized');
+  if (!storyContract) throw new Error('Story contract not initialized');
   
-  const tx = await integrationContract.registerAuthor(
+  const tx = await storyContract.registerAuthor(
     pseudonym,
     impactPercentage
   );
@@ -294,9 +294,9 @@ export const addChapterOnChain = async (
   contentHash: string,
   price: number
 ) => {
-  if (!integrationContract) throw new Error('Contracts not initialized');
+  if (!storyContract) throw new Error('Story contract not initialized');
   
-  const tx = await integrationContract.addChapterIntegrated(
+  const tx = await storyContract.addChapter(
     storyId,
     title,
     contentHash,
@@ -402,9 +402,33 @@ export const checkChapterAccess = async (
 
 // User Profile
 export const getUserProfileOnChain = async (user: string) => {
-  if (!integrationContract) throw new Error('Contracts not initialized');
+  if (!storyContract) throw new Error('Story contract not initialized');
   
-  return await integrationContract.getUserProfile(user);
+  try {
+    const profile = await storyContract.getAuthorProfile(user);
+    
+    // The smart contract returns an array, so we need to convert it to an object
+    // Based on the Solidity struct: (address author, string pseudonym, uint256 impactPercentage, uint256 totalStories, uint256 totalChapters, uint256 totalReaders, uint256 totalEarnings, bool isActive, uint256 createdAt)
+    if (Array.isArray(profile) && profile.length >= 9) {
+      return {
+        author: profile[0],
+        pseudonym: profile[1],
+        impactPercentage: profile[2],
+        totalStories: profile[3],
+        totalChapters: profile[4],
+        totalReaders: profile[5],
+        totalEarnings: profile[6],
+        isActive: profile[7],
+        createdAt: profile[8]
+      };
+    }
+    
+    // Fallback: return the raw profile if it's not in expected format
+    return profile;
+  } catch (error) {
+    console.error('Error getting user profile on chain:', error);
+    throw error;
+  }
 };
 
 // Story Information
