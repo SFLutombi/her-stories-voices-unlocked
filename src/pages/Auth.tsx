@@ -5,9 +5,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Switch } from '@/components/ui/switch';
+import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
+import { useWallet } from '@/hooks/useWallet';
 import { useToast } from '@/hooks/use-toast';
-import { Heart, BookOpen, Users } from 'lucide-react';
+import { MetaMaskModal } from '@/components/MetaMaskModal';
+import { Heart, BookOpen, Users, Wallet, Shield, Eye, PenTool } from 'lucide-react';
 import { useEffect } from 'react';
 
 const Auth = () => {
@@ -15,28 +19,71 @@ const Auth = () => {
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isAuthor, setIsAuthor] = useState(false);
+  const [anonymousMode, setAnonymousMode] = useState(false);
+  const [anonymousName, setAnonymousName] = useState('');
+  const [showWalletModal, setShowWalletModal] = useState(false);
+  
   const { signUp, signIn, user } = useAuth();
+  const { 
+    isConnected, 
+    account, 
+    isMetaMaskInstalled 
+  } = useWallet();
   const { toast } = useToast();
   const navigate = useNavigate();
 
   useEffect(() => {
     if (user) {
-      navigate('/discover');
+      if (isAuthor) {
+        navigate('/profile-setup');
+      } else {
+        navigate('/discover');
+      }
     }
-  }, [user, navigate]);
+  }, [user, isAuthor, navigate]);
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
+      // For authors, require wallet connection
+      if (isAuthor && !isConnected) {
+        toast({
+          variant: "destructive",
+          title: "Wallet Required",
+          description: "Authors must connect their MetaMask wallet to continue.",
+        });
+        setLoading(false);
+        return;
+      }
+
       const { error } = await signUp(email, password, displayName);
       if (error) throw error;
 
       toast({
         title: "Welcome to HerStories!",
-        description: "Please check your email to verify your account.",
+        description: isAuthor 
+          ? "Please check your email to verify your account, then complete your author profile."
+          : "Please check your email to verify your account.",
       });
+
+      // If author, redirect to profile setup after email verification
+      if (isAuthor) {
+        // Store author preferences in localStorage for profile setup
+        localStorage.setItem('authorSetup', JSON.stringify({
+          isAuthor: true,
+          anonymousMode,
+          anonymousName,
+          walletAddress: account,
+          walletData: {
+            account: account,
+            chainId: null, // Will be populated during profile setup
+            connectedAt: new Date().toISOString()
+          }
+        }));
+      }
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -60,6 +107,9 @@ const Auth = () => {
         title: "Welcome back!",
         description: "You've successfully signed in.",
       });
+      
+      // Check if user is an author and redirect accordingly
+      // This would typically come from the user's profile in Supabase
       navigate('/discover');
     } catch (error: any) {
       toast({
@@ -72,13 +122,31 @@ const Auth = () => {
     }
   };
 
+  const handleWalletSuccess = (connectedAccount: string) => {
+    toast({
+      title: "Wallet Connected!",
+      description: `MetaMask connected successfully. You can now complete your author registration.`,
+    });
+  };
+
+  const handleAuthorToggle = (checked: boolean) => {
+    setIsAuthor(checked);
+    if (checked && !isMetaMaskInstalled()) {
+      toast({
+        title: "MetaMask Required",
+        description: "You need to install MetaMask to publish stories as an author.",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-empowerment/5 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <div className="flex items-center justify-center mb-4">
             <Heart className="h-8 w-8 text-primary mr-2" />
-            <h1 className="text-3xl font-bold bg-gradient-hero bg-clip-text text-transparent">
+            <h1 className="text-3xl font-bold text-primary">
               HerStories
             </h1>
           </div>
@@ -147,8 +215,10 @@ const Auth = () => {
                       value={displayName}
                       onChange={(e) => setDisplayName(e.target.value)}
                       placeholder="How should we call you?"
+                      required
                     />
                   </div>
+                  
                   <div className="space-y-2">
                     <Label htmlFor="signup-email">Email</Label>
                     <Input
@@ -159,6 +229,7 @@ const Auth = () => {
                       required
                     />
                   </div>
+                  
                   <div className="space-y-2">
                     <Label htmlFor="signup-password">Password</Label>
                     <Input
@@ -170,7 +241,87 @@ const Auth = () => {
                       minLength={6}
                     />
                   </div>
-                  <Button type="submit" className="w-full" disabled={loading}>
+
+                  {/* Author Role Selection */}
+                  <div className="space-y-3">
+                    <div className="flex items-center space-x-2">
+                      <Switch
+                        id="author-mode"
+                        checked={isAuthor}
+                        onCheckedChange={handleAuthorToggle}
+                      />
+                      <Label htmlFor="author-mode" className="font-medium">
+                        I want to publish stories and earn from readers
+                      </Label>
+                    </div>
+                    
+                    {isAuthor && (
+                      <div className="space-y-3 p-3 bg-muted/50 rounded-lg">
+                        <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+                          <PenTool className="h-4 w-4" />
+                          <span>Author features will be unlocked after signup</span>
+                        </div>
+                        
+                        {/* Wallet Connection for Authors */}
+                        <div className="space-y-2">
+                          <Label className="text-sm font-medium">MetaMask Wallet</Label>
+                          {!isMetaMaskInstalled() ? (
+                            <div className="text-sm text-destructive">
+                              MetaMask is not installed. Please install MetaMask to continue as an author.
+                            </div>
+                          ) : !isConnected ? (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => setShowWalletModal(true)}
+                              className="w-full"
+                            >
+                              <Wallet className="h-4 w-4 mr-2" />
+                              Connect MetaMask
+                            </Button>
+                          ) : (
+                            <div className="flex items-center justify-between p-2 bg-primary/10 rounded border">
+                              <span className="text-sm font-mono">
+                                {account?.slice(0, 6)}...{account?.slice(-4)}
+                              </span>
+                              <Badge variant="secondary" className="bg-green-100 text-green-800">
+                                Connected
+                              </Badge>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Anonymous Mode for Authors */}
+                        <div className="space-y-2">
+                          <div className="flex items-center space-x-2">
+                            <Switch
+                              id="anonymous-mode"
+                              checked={anonymousMode}
+                              onCheckedChange={setAnonymousMode}
+                            />
+                            <Label htmlFor="anonymous-mode" className="text-sm">
+                              Enable anonymous publishing for sensitive content
+                            </Label>
+                          </div>
+                          
+                          {anonymousMode && (
+                            <Input
+                              placeholder="Choose a pen name"
+                              value={anonymousName}
+                              onChange={(e) => setAnonymousName(e.target.value)}
+                              className="text-sm"
+                            />
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <Button 
+                    type="submit" 
+                    className="w-full" 
+                    disabled={loading || (isAuthor && !isConnected)}
+                  >
                     {loading ? 'Creating Account...' : 'Create Account'}
                   </Button>
                 </form>
@@ -194,6 +345,13 @@ const Auth = () => {
           </div>
         </div>
       </div>
+
+      {/* MetaMask Connection Modal */}
+      <MetaMaskModal
+        isOpen={showWalletModal}
+        onOpenChange={setShowWalletModal}
+        onSuccess={handleWalletSuccess}
+      />
     </div>
   );
 };

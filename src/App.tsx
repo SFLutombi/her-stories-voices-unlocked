@@ -4,6 +4,9 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
+import { SplashScreen } from "./components/SplashScreen";
+import { Onboarding } from "./components/Onboarding";
+import { ProfileSetup } from "./components/ProfileSetup";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Discover from "./pages/Discover";
@@ -26,6 +29,9 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<Index />} />
+            <Route path="/splash" element={<SplashScreen />} />
+            <Route path="/onboarding" element={<Onboarding />} />
+            <Route path="/profile-setup" element={<ProfileSetup />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/discover" element={<Discover />} />
             <Route path="/story/:id" element={<StoryDetails />} />

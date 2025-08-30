@@ -1,7 +1,32 @@
 import { Button } from "@/components/ui/button";
 import { Heart, Search, User, BookOpen } from "lucide-react";
+import { ThemeToggle } from "./ThemeToggle";
+import { useAuth } from "@/contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
 
 export const Navigation = () => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+
+  const handlePublishClick = () => {
+    if (!user) {
+      // Redirect to auth page for signup
+      navigate('/auth');
+    } else {
+      // Check if user is an author, if not redirect to profile setup
+      // For now, redirect to dashboard where they can become an author
+      navigate('/dashboard');
+    }
+  };
+
+  const handleSignInClick = () => {
+    if (user) {
+      navigate('/dashboard');
+    } else {
+      navigate('/auth');
+    }
+  };
+
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
       <div className="container mx-auto px-6 py-4">
@@ -14,31 +39,40 @@ export const Navigation = () => {
           </div>
           
           <div className="hidden md:flex items-center space-x-8">
-            <a href="#discover" className="text-foreground hover:text-primary transition-colors">
+            <a href="/discover" className="text-foreground hover:text-primary transition-colors">
               Discover
             </a>
-            <a href="#categories" className="text-foreground hover:text-primary transition-colors">
+            <a href="/#categories" className="text-foreground hover:text-primary transition-colors">
               Categories
             </a>
-            <a href="#authors" className="text-foreground hover:text-primary transition-colors">
+            <a href="/#authors" className="text-foreground hover:text-primary transition-colors">
               Authors
             </a>
-            <a href="#impact" className="text-foreground hover:text-primary transition-colors">
+            <a href="/impact" className="text-foreground hover:text-primary transition-colors">
               Impact
             </a>
           </div>
           
           <div className="flex items-center space-x-4">
+            <ThemeToggle />
             <Button variant="ghost" size="icon">
               <Search className="h-5 w-5" />
             </Button>
-            <Button variant="empowerment" size="sm">
+            <Button 
+              variant="empowerment" 
+              size="sm"
+              onClick={handlePublishClick}
+            >
               <BookOpen className="h-4 w-4 mr-2" />
-              Publish
+              {user ? 'Dashboard' : 'Publish'}
             </Button>
-            <Button variant="outline" size="sm">
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={handleSignInClick}
+            >
               <User className="h-4 w-4 mr-2" />
-              Sign In
+              {user ? 'Profile' : 'Sign In'}
             </Button>
           </div>
         </div>

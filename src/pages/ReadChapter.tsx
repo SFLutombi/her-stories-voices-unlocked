@@ -110,7 +110,7 @@ const ReadChapter = () => {
     }
   };
 
-  const handleTip = async () => {
+  const handleTip = async (amount: number) => {
     if (!user || !chapter) {
       toast({
         title: "Sign in required",
@@ -128,7 +128,7 @@ const ReadChapter = () => {
         .eq('user_id', user.id)
         .single();
 
-      if (!profile || profile.wallet_balance < tipAmount) {
+      if (!profile || profile.wallet_balance < amount) {
         toast({
           variant: "destructive",
           title: "Insufficient credits",
@@ -144,7 +144,7 @@ const ReadChapter = () => {
           buyer_id: user.id,
           story_id: chapter.story.id,
           chapter_id: chapter.id,
-          amount: tipAmount,
+          amount: amount,
           transaction_type: 'tip',
         });
 
@@ -154,7 +154,7 @@ const ReadChapter = () => {
       const { error: balanceError } = await supabase
         .from('profiles')
         .update({
-          wallet_balance: profile.wallet_balance - tipAmount,
+          wallet_balance: profile.wallet_balance - amount,
         })
         .eq('user_id', user.id);
 
@@ -162,7 +162,7 @@ const ReadChapter = () => {
 
       toast({
         title: "Thank you!",
-        description: `You've sent ${tipAmount} credits to support this author`,
+        description: `You've sent ${amount} credits to support this author`,
       });
     } catch (error) {
       console.error('Error sending tip:', error);
@@ -299,12 +299,40 @@ const ReadChapter = () => {
       {user && !chapter.is_free && (
         <div className="bg-gradient-to-r from-primary/10 to-empowerment/10 border-b">
           <div className="container mx-auto px-4 py-3">
-            <div className="flex items-center justify-center text-center">
-              <Heart className="h-4 w-4 mr-2 text-empowerment" />
-              <span className="text-sm">
-                You supported <strong>{chapter.story.author.display_name}</strong> with{' '}
-                <strong>{chapter.story.price_per_chapter} credits</strong>
-              </span>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <Heart className="h-5 w-5 text-primary" />
+                <span className="text-sm font-medium">
+                  You supported <span className="text-primary font-semibold">{chapter.story.author?.display_name || 'Anonymous'}</span> with {chapter.story.price_per_chapter} Credits
+                </span>
+              </div>
+              
+              {/* Micro-tipping */}
+              <div className="flex items-center space-x-2">
+                <span className="text-sm text-muted-foreground">Show appreciation:</span>
+                <div className="flex items-center space-x-1">
+                  {[1, 3, 5, 10].map((amount) => (
+                    <Button
+                      key={amount}
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleTip(amount)}
+                      disabled={tipping}
+                      className="h-8 px-2 text-xs hover:bg-empowerment hover:text-white"
+                    >
+                      +{amount}
+                    </Button>
+                  ))}
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setTipAmount(0)}
+                  className="h-8 px-2 text-xs"
+                >
+                  Custom
+                </Button>
+              </div>
             </div>
           </div>
         </div>
@@ -405,7 +433,7 @@ const ReadChapter = () => {
                     <Button
                       className="w-full"
                       disabled={tipping}
-                      onClick={handleTip}
+                      onClick={() => handleTip(tipAmount)}
                     >
                       <Coins className="h-4 w-4 mr-2" />
                       {tipping ? 'Sending...' : `Tip ${tipAmount} Credits`}
