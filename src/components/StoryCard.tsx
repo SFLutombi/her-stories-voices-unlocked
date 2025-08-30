@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Heart, BookOpen, Coins } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 interface StoryCardProps {
   id: string;
@@ -17,6 +18,7 @@ interface StoryCardProps {
 }
 
 export const StoryCard = ({
+  id,
   title,
   author,
   description,
@@ -27,6 +29,7 @@ export const StoryCard = ({
   isAnonymous = false,
   impact
 }: StoryCardProps) => {
+  const navigate = useNavigate();
   return (
     <Card className="group overflow-hidden hover:shadow-story transition-all duration-300 bg-card border-border">
       <div className="relative overflow-hidden">
@@ -74,8 +77,12 @@ export const StoryCard = ({
       </CardContent>
       
       <CardFooter className="p-6 pt-0">
-        <Button variant="chapter" className="w-full">
-          Read First Chapter
+        <Button 
+          variant="chapter" 
+          className="w-full"
+          onClick={() => navigate(`/story/${id}`)}
+        >
+          View Story
         </Button>
       </CardFooter>
     </Card>

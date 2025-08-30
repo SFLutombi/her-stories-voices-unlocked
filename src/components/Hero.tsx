@@ -1,8 +1,10 @@
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Heart, Users, BookOpen } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import heroImage from "@/assets/hero-image.jpg";
 
 export const Hero = () => {
+  const navigate = useNavigate();
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
       {/* Background Image */}
@@ -40,12 +42,12 @@ export const Hero = () => {
           </p>
           
           <div className="flex flex-col sm:flex-row gap-4 justify-center mb-16">
-            <Button variant="hero" size="lg" className="text-lg px-8 py-6">
+            <Button variant="hero" size="lg" className="text-lg px-8 py-6" onClick={() => navigate('/discover')}>
               <BookOpen className="h-5 w-5 mr-2" />
               Start Reading
               <ArrowRight className="h-5 w-5 ml-2" />
             </Button>
-            <Button variant="empowerment" size="lg" className="text-lg px-8 py-6">
+            <Button variant="outline" size="lg" className="text-lg px-8 py-6" onClick={() => navigate('/auth')}>
               <Heart className="h-5 w-5 mr-2" />
               Publish Your Story
             </Button>
