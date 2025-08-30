@@ -14,7 +14,250 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      categories: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      chapters: {
+        Row: {
+          chapter_number: number
+          content: string
+          created_at: string
+          id: string
+          is_free: boolean | null
+          published: boolean | null
+          story_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          chapter_number: number
+          content: string
+          created_at?: string
+          id?: string
+          is_free?: boolean | null
+          published?: boolean | null
+          story_id: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          chapter_number?: number
+          content?: string
+          created_at?: string
+          id?: string
+          is_free?: boolean | null
+          published?: boolean | null
+          story_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chapters_story_id_fkey"
+            columns: ["story_id"]
+            isOneToOne: false
+            referencedRelation: "stories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          bio: string | null
+          created_at: string
+          display_name: string | null
+          id: string
+          is_anonymous: boolean | null
+          is_author: boolean | null
+          updated_at: string
+          user_id: string
+          wallet_balance: number | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          bio?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          is_anonymous?: boolean | null
+          is_author?: boolean | null
+          updated_at?: string
+          user_id: string
+          wallet_balance?: number | null
+        }
+        Update: {
+          avatar_url?: string | null
+          bio?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          is_anonymous?: boolean | null
+          is_author?: boolean | null
+          updated_at?: string
+          user_id?: string
+          wallet_balance?: number | null
+        }
+        Relationships: []
+      }
+      purchases: {
+        Row: {
+          chapter_id: string | null
+          id: string
+          purchased_at: string
+          story_id: string
+          user_id: string
+        }
+        Insert: {
+          chapter_id?: string | null
+          id?: string
+          purchased_at?: string
+          story_id: string
+          user_id: string
+        }
+        Update: {
+          chapter_id?: string | null
+          id?: string
+          purchased_at?: string
+          story_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchases_chapter_id_fkey"
+            columns: ["chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchases_story_id_fkey"
+            columns: ["story_id"]
+            isOneToOne: false
+            referencedRelation: "stories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stories: {
+        Row: {
+          author_id: string
+          category_id: string | null
+          cover_image_url: string | null
+          created_at: string
+          description: string | null
+          id: string
+          impact_percentage: number | null
+          is_anonymous: boolean | null
+          price_per_chapter: number
+          published: boolean | null
+          title: string
+          total_chapters: number | null
+          updated_at: string
+        }
+        Insert: {
+          author_id: string
+          category_id?: string | null
+          cover_image_url?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          impact_percentage?: number | null
+          is_anonymous?: boolean | null
+          price_per_chapter?: number
+          published?: boolean | null
+          title: string
+          total_chapters?: number | null
+          updated_at?: string
+        }
+        Update: {
+          author_id?: string
+          category_id?: string | null
+          cover_image_url?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          impact_percentage?: number | null
+          is_anonymous?: boolean | null
+          price_per_chapter?: number
+          published?: boolean | null
+          title?: string
+          total_chapters?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stories_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      transactions: {
+        Row: {
+          amount: number
+          buyer_id: string
+          chapter_id: string | null
+          created_at: string
+          id: string
+          story_id: string
+          transaction_type: string
+        }
+        Insert: {
+          amount: number
+          buyer_id: string
+          chapter_id?: string | null
+          created_at?: string
+          id?: string
+          story_id: string
+          transaction_type: string
+        }
+        Update: {
+          amount?: number
+          buyer_id?: string
+          chapter_id?: string | null
+          created_at?: string
+          id?: string
+          story_id?: string
+          transaction_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transactions_chapter_id_fkey"
+            columns: ["chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_story_id_fkey"
+            columns: ["story_id"]
+            isOneToOne: false
+            referencedRelation: "stories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
