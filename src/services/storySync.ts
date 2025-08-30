@@ -71,7 +71,7 @@ export const createStory = async (
         impact_percentage: storyData.impactPercentage,
         is_anonymous: storyData.isAnonymous,
         cover_image_url: storyData.coverImageUrl,
-        published: false, // Start as unpublished
+        published: true, // ✅ Mark as published by default so it shows on discover page
         total_chapters: 0
       })
       .select()

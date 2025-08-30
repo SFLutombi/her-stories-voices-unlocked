@@ -9,7 +9,6 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Search, Filter, Heart, TrendingUp, Coins, AlertCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { getDiscoverStories } from '@/services/storySync';
 import { useWeb3 } from '@/contexts/Web3Context';
 
 interface Story {
@@ -23,20 +22,12 @@ interface Story {
   impact_percentage: number;
   blockchain_id?: string;
   blockchain_tx_hash?: string;
-  author: {
-    display_name: string;
-    is_anonymous: boolean;
-  };
+  author_id: string;
   category: {
     name: string;
   };
-  chapters: Array<{
-    id: string;
-    chapter_number: number;
-    title: string;
-    is_free: boolean;
-    published: boolean;
-  }>;
+  published: boolean;
+  created_at: string;
 }
 
 const Discover = () => {
@@ -67,28 +58,39 @@ const Discover = () => {
   const fetchStories = async () => {
     setLoading(true);
     try {
-      // Use the smart contract sync service to get stories
-      const blockchainStories = await getDiscoverStories();
-      
-      // Filter and sort stories
-      let filteredStories = blockchainStories;
+      // Direct database fetch for better reliability
+      let query = supabase
+        .from('stories')
+        .select(`
+          *,
+          category:categories(name)
+        `)
+        .eq('published', true);
 
       if (selectedCategory !== 'all') {
         const category = categories.find(c => c.name === selectedCategory);
         if (category) {
-          filteredStories = filteredStories.filter(story => 
-            story.category?.name === selectedCategory
-          );
+          query = query.eq('category_id', category.id);
         }
       }
+
+      const { data: storiesData, error } = await query;
+
+      if (error) {
+        console.error('Database fetch error:', error);
+        throw error;
+      }
+
+      console.log('Fetched stories from database:', storiesData);
+
+      // Filter and sort stories
+      let filteredStories = storiesData || [];
 
       // Apply search filter
       if (searchQuery) {
         filteredStories = filteredStories.filter(story =>
           story.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          story.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          (story.author?.display_name && !story.is_anonymous && 
-           story.author.display_name.toLowerCase().includes(searchQuery.toLowerCase()))
+          story.description.toLowerCase().includes(searchQuery.toLowerCase())
         );
       }
 
@@ -108,6 +110,7 @@ const Discover = () => {
           break;
       }
 
+      console.log('Filtered and sorted stories:', filteredStories);
       setStories(filteredStories);
     } catch (error) {
       console.error('Error fetching stories:', error);
@@ -142,10 +145,13 @@ const Discover = () => {
 
       if (error) throw error;
       
-      // Filter stories that have at least one published chapter
-      const validStories = data?.filter(story => 
-        story.chapters && story.chapters.some(chapter => chapter.published)
-      ) || [];
+      // Show all published stories, even if they don't have chapters yet
+      // This allows new stories to appear on the discover page immediately
+      const validStories = data?.map(story => ({
+        ...story,
+        // Ensure chapters array exists even if empty
+        chapters: story.chapters || []
+      })) || [];
       
       setStories(validStories);
     } catch (error) {
@@ -157,9 +163,7 @@ const Discover = () => {
   const filteredStories = stories.filter(story => {
     if (searchQuery) {
       return story.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-             story.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-             (story.author?.display_name && !story.is_anonymous && 
-              story.author.display_name.toLowerCase().includes(searchQuery.toLowerCase()));
+             story.description.toLowerCase().includes(searchQuery.toLowerCase());
     }
     return true;
   });
@@ -284,7 +288,7 @@ const Discover = () => {
                     key={story.id}
                     id={story.id}
                     title={story.title}
-                    author={story.author?.display_name || 'Anonymous'}
+                    author={story.author_id ? story.author_id.slice(0, 6) + '...' + story.author_id.slice(-4) : 'Anonymous'}
                     description={story.description}
                     coverImage={story.cover_image_url || '/placeholder.svg'}
                     pricePerChapter={story.price_per_chapter}
@@ -343,7 +347,7 @@ const Discover = () => {
                     key={story.id}
                     id={story.id}
                     title={story.title}
-                    author={story.author?.display_name || 'Unknown'}
+                    author={story.author_id ? story.author_id.slice(0, 6) + '...' + story.author_id.slice(-4) : 'Unknown'}
                     description={story.description}
                     coverImage={story.cover_image_url || '/placeholder.svg'}
                     pricePerChapter={story.price_per_chapter}
