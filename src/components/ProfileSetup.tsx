@@ -151,6 +151,9 @@ export const ProfileSetup = () => {
             bio: profileData.bio,
             is_author: profileData.role === 'writer' || profileData.role === 'both',
             is_anonymous: profileData.isAnonymous,
+            pseudonym: profileData.isAnonymous ? profileData.anonymousName : null,
+            wallet_address: profileData.walletAddress,
+            wallet_data: profileData.walletData,
             updated_at: new Date().toISOString()
           })
           .eq('user_id', user.id);
@@ -167,25 +170,53 @@ export const ProfileSetup = () => {
             bio: profileData.bio,
             is_author: profileData.role === 'writer' || profileData.role === 'both',
             is_anonymous: profileData.isAnonymous,
+            pseudonym: profileData.isAnonymous ? profileData.anonymousName : null,
+            wallet_address: profileData.walletAddress,
+            wallet_data: profileData.walletData,
             updated_at: new Date().toISOString()
           });
 
         if (createError) throw createError;
       }
 
-      // Store additional author metadata in localStorage
+      // If author, create/update author profile
       if (profileData.role === 'writer' || profileData.role === 'both') {
-        const authorData = {
-          user_id: user.id,
-          anonymous_name: profileData.anonymousName,
-          wallet_address: profileData.walletAddress,
-          wallet_data: profileData.walletData,
-          impact_percentage: profileData.impactPercentage,
-          created_at: new Date().toISOString()
-        };
+        console.log('Creating/updating author profile');
+        
+        const { error: authorError } = await supabase
+          .from('author_profiles')
+          .upsert({
+            user_id: user.id,
+            pseudonym: profileData.isAnonymous ? profileData.anonymousName : null,
+            wallet_address: profileData.walletAddress,
+            wallet_data: profileData.walletData,
+            impact_percentage: profileData.impactPercentage || 0,
+            total_earnings: 0.00,
+            total_stories_published: 0,
+            total_chapters_published: 0,
+            total_readers: 0
+          });
 
-        localStorage.setItem(`authorProfile_${user.id}`, JSON.stringify(authorData));
-        console.log('Author profile data stored in localStorage:', authorData);
+        if (authorError) {
+          console.error('Error creating author profile:', authorError);
+          throw authorError;
+        }
+      }
+
+      // Create user credits record (everyone starts with 0)
+      console.log('Creating user credits record');
+      const { error: creditsError } = await supabase
+        .from('user_credits')
+        .upsert({
+          user_id: user.id,
+          balance: 0.00,
+          total_earned: 0.00,
+          total_spent: 0.00
+        });
+
+      if (creditsError) {
+        console.error('Error creating user credits:', creditsError);
+        throw creditsError;
       }
 
       // Clear onboarding data

@@ -3,9 +3,10 @@ import { Heart, Search, User, BookOpen } from "lucide-react";
 import { ThemeToggle } from "./ThemeToggle";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 
 export const Navigation = () => {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const navigate = useNavigate();
 
   const handlePublishClick = () => {
@@ -24,6 +25,17 @@ export const Navigation = () => {
       navigate('/dashboard');
     } else {
       navigate('/auth');
+    }
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      // signOut function already handles redirect to home page
+    } catch (error) {
+      console.error('Error signing out:', error);
+      // Fallback: redirect to home page
+      navigate('/');
     }
   };
 
@@ -53,28 +65,33 @@ export const Navigation = () => {
             </a>
           </div>
           
-          <div className="flex items-center space-x-4">
-            <ThemeToggle />
-            <Button variant="ghost" size="icon">
-              <Search className="h-5 w-5" />
-            </Button>
-            <Button 
-              variant="empowerment" 
-              size="sm"
-              onClick={handlePublishClick}
-            >
-              <BookOpen className="h-4 w-4 mr-2" />
-              {user ? 'Dashboard' : 'Publish'}
-            </Button>
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={handleSignInClick}
-            >
-              <User className="h-4 w-4 mr-2" />
-              {user ? 'Profile' : 'Sign In'}
-            </Button>
-          </div>
+          {user ? (
+            <div className="flex items-center space-x-4">
+              <ThemeToggle />
+              <Button variant="ghost" asChild>
+                <Link to="/discover">Discover</Link>
+              </Button>
+              <Button variant="ghost" asChild>
+                <Link to="/profile">Profile</Link>
+              </Button>
+              <Button variant="ghost" asChild>
+                <Link to="/dashboard">Dashboard</Link>
+              </Button>
+              <Button variant="outline" onClick={handleSignOut}>
+                Sign Out
+              </Button>
+            </div>
+          ) : (
+            <div className="flex items-center space-x-4">
+              <ThemeToggle />
+              <Button variant="ghost" asChild>
+                <Link to="/auth">Sign In</Link>
+              </Button>
+              <Button asChild>
+                <Link to="/auth">Sign Up</Link>
+              </Button>
+            </div>
+          )}
         </div>
       </div>
     </nav>

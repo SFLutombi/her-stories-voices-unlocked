@@ -91,6 +91,13 @@ export type Database = {
           updated_at: string
           user_id: string
           wallet_balance: number | null
+          pseudonym: string | null
+          wallet_address: string | null
+          wallet_data: Json | null
+          total_earnings: number | null
+          total_stories_published: number | null
+          total_chapters_published: number | null
+          total_readers: number | null
         }
         Insert: {
           avatar_url?: string | null
@@ -103,6 +110,13 @@ export type Database = {
           updated_at?: string
           user_id: string
           wallet_balance?: number | null
+          pseudonym?: string | null
+          wallet_address?: string | null
+          wallet_data?: Json | null
+          total_earnings?: number | null
+          total_stories_published?: number | null
+          total_chapters_published?: number | null
+          total_readers?: number | null
         }
         Update: {
           avatar_url?: string | null
@@ -115,8 +129,177 @@ export type Database = {
           updated_at?: string
           user_id?: string
           wallet_balance?: number | null
+          pseudonym?: string | null
+          wallet_address?: string | null
+          wallet_data?: Json | null
+          total_earnings?: number | null
+          total_stories_published?: number | null
+          total_chapters_published?: number | null
+          total_readers?: number | null
         }
         Relationships: []
+      }
+      author_profiles: {
+        Row: {
+          id: string
+          user_id: string
+          pseudonym: string | null
+          wallet_address: string
+          wallet_data: Json | null
+          impact_percentage: number
+          total_earnings: number
+          total_stories_published: number
+          total_chapters_published: number
+          total_readers: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          pseudonym?: string | null
+          wallet_address: string
+          wallet_data?: Json | null
+          impact_percentage?: number
+          total_earnings?: number
+          total_stories_published?: number
+          total_chapters_published?: number
+          total_readers?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          pseudonym?: string | null
+          wallet_address?: string
+          wallet_data?: Json | null
+          impact_percentage?: number
+          total_earnings?: number
+          total_stories_published?: number
+          total_chapters_published?: number
+          total_readers?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "author_profiles_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      transactions: {
+        Row: {
+          id: string
+          from_user_id: string | null
+          to_user_id: string
+          story_id: string | null
+          chapter_id: string | null
+          amount: number
+          transaction_type: string
+          status: string
+          blockchain_tx_hash: string | null
+          created_at: string
+          completed_at: string | null
+        }
+        Insert: {
+          id?: string
+          from_user_id?: string | null
+          to_user_id: string
+          story_id?: string | null
+          chapter_id?: string | null
+          amount: number
+          transaction_type: string
+          status?: string
+          blockchain_tx_hash?: string | null
+          created_at?: string
+          completed_at?: string | null
+        }
+        Update: {
+          id?: string
+          from_user_id?: string | null
+          to_user_id?: string
+          story_id?: string | null
+          chapter_id?: string | null
+          amount?: number
+          transaction_type?: string
+          status?: string
+          blockchain_tx_hash?: string | null
+          created_at?: string
+          completed_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transactions_from_user_id_fkey"
+            columns: ["from_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_to_user_id_fkey"
+            columns: ["to_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_story_id_fkey"
+            columns: ["story_id"]
+            isOneToOne: false
+            referencedRelation: "stories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_chapter_id_fkey"
+            columns: ["chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      user_credits: {
+        Row: {
+          id: string
+          user_id: string
+          balance: number
+          total_earned: number
+          total_spent: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          balance?: number
+          total_earned?: number
+          total_spent?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          balance?: number
+          total_earned?: number
+          total_spent?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_credits_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       purchases: {
         Row: {
@@ -209,51 +392,6 @@ export type Database = {
             columns: ["category_id"]
             isOneToOne: false
             referencedRelation: "categories"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      transactions: {
-        Row: {
-          amount: number
-          buyer_id: string
-          chapter_id: string | null
-          created_at: string
-          id: string
-          story_id: string
-          transaction_type: string
-        }
-        Insert: {
-          amount: number
-          buyer_id: string
-          chapter_id?: string | null
-          created_at?: string
-          id?: string
-          story_id: string
-          transaction_type: string
-        }
-        Update: {
-          amount?: number
-          buyer_id?: string
-          chapter_id?: string | null
-          created_at?: string
-          id?: string
-          story_id?: string
-          transaction_type?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "transactions_chapter_id_fkey"
-            columns: ["chapter_id"]
-            isOneToOne: false
-            referencedRelation: "chapters"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "transactions_story_id_fkey"
-            columns: ["story_id"]
-            isOneToOne: false
-            referencedRelation: "stories"
             referencedColumns: ["id"]
           },
         ]

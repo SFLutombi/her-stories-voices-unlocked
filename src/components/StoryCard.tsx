@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Heart, BookOpen, Coins } from "lucide-react";
+import { Heart, BookOpen, Coins, Link, ExternalLink } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 interface StoryCardProps {
@@ -15,6 +15,10 @@ interface StoryCardProps {
   category: string;
   isAnonymous?: boolean;
   impact?: string;
+  blockchainInfo?: {
+    id: string;
+    txHash?: string;
+  };
 }
 
 export const StoryCard = ({
@@ -27,9 +31,23 @@ export const StoryCard = ({
   totalChapters,
   category,
   isAnonymous = false,
-  impact
+  impact,
+  blockchainInfo
 }: StoryCardProps) => {
   const navigate = useNavigate();
+  
+  const handleViewStory = () => {
+    navigate(`/story/${id}`);
+  };
+
+  const handleViewBlockchain = () => {
+    if (blockchainInfo?.txHash) {
+      // Open Primordial BlockDAG explorer in new tab
+      const explorerUrl = `https://primordial.bdagscan.com/tx/${blockchainInfo.txHash}`;
+      window.open(explorerUrl, '_blank');
+    }
+  };
+
   return (
     <Card className="group overflow-hidden hover:shadow-story transition-all duration-300 bg-card border-border">
       <div className="relative overflow-hidden">
@@ -48,6 +66,14 @@ export const StoryCard = ({
             <Badge variant="outline" className="bg-empowerment/10 border-empowerment text-empowerment">
               <Heart className="h-3 w-3 mr-1" />
               Impact
+            </Badge>
+          </div>
+        )}
+        {blockchainInfo && (
+          <div className="absolute bottom-4 left-4">
+            <Badge variant="default" className="bg-green-600 text-white">
+              <Link className="h-3 w-3 mr-1" />
+              Blockchain
             </Badge>
           </div>
         )}
@@ -74,15 +100,38 @@ export const StoryCard = ({
             {pricePerChapter} credits/chapter
           </div>
         </div>
+
+        {blockchainInfo && (
+          <div className="mt-3 p-2 bg-green-50 border border-green-200 rounded-md">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-green-700 font-medium">
+                ✓ Created on Primordial BlockDAG Testnet
+              </span>
+              {blockchainInfo.txHash && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleViewBlockchain}
+                  className="h-6 px-2 text-green-600 hover:text-green-700 hover:bg-green-100"
+                >
+                  <ExternalLink className="h-3 w-3 mr-1" />
+                  View TX
+                </Button>
+              )}
+            </div>
+            <p className="text-green-600 text-xs mt-1">
+              ID: {blockchainInfo.id}
+            </p>
+          </div>
+        )}
       </CardContent>
       
       <CardFooter className="p-6 pt-0">
         <Button 
-          variant="chapter" 
-          className="w-full"
-          onClick={() => navigate(`/story/${id}`)}
+          onClick={handleViewStory}
+          className="w-full group-hover:bg-primary group-hover:text-primary-foreground transition-colors"
         >
-          View Story
+          Read Story
         </Button>
       </CardFooter>
     </Card>

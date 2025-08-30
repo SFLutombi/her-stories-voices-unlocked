@@ -38,8 +38,8 @@ const Auth = () => {
       if (isAuthor) {
         navigate('/profile-setup');
       } else {
-        navigate('/discover');
-      }
+      navigate('/discover');
+    }
     }
   }, [user, isAuthor, navigate]);
 
@@ -82,8 +82,8 @@ const Auth = () => {
         } else if (error.message?.includes('rate limit')) {
           userMessage = "Too many signup attempts. Please wait a moment and try again.";
         }
-        
-        toast({
+
+      toast({
           variant: "destructive",
           title: "Account Creation Failed",
           description: userMessage,
