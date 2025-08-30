@@ -1,13 +1,14 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Heart, BookOpen, Coins, Link, ExternalLink } from "lucide-react";
+import { Heart, BookOpen, Coins, Link, ExternalLink, User } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 interface StoryCardProps {
   id: string;
   title: string;
   author: string;
+  authorId?: string; // Add author ID for navigation
   description: string;
   coverImage: string;
   pricePerChapter: number;
@@ -25,6 +26,7 @@ export const StoryCard = ({
   id,
   title,
   author,
+  authorId,
   description,
   coverImage,
   pricePerChapter,
@@ -38,6 +40,13 @@ export const StoryCard = ({
   
   const handleViewStory = () => {
     navigate(`/story/${id}`);
+  };
+
+  const handleViewAuthor = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent triggering the story view
+    if (authorId && !isAnonymous) {
+      navigate(`/author/${authorId}`);
+    }
   };
 
   const handleViewBlockchain = () => {
@@ -84,7 +93,19 @@ export const StoryCard = ({
           {title}
         </h3>
         <p className="text-sm text-muted-foreground mb-1">
-          by {isAnonymous ? "Anonymous" : author}
+          by {isAnonymous ? "Anonymous" : (
+            authorId ? (
+              <button
+                onClick={handleViewAuthor}
+                className="hover:text-primary hover:underline transition-colors cursor-pointer flex items-center space-x-1"
+              >
+                <User className="h-3 w-3" />
+                <span>{author}</span>
+              </button>
+            ) : (
+              author
+            )
+          )}
         </p>
         <p className="text-muted-foreground text-sm mb-4 line-clamp-3">
           {description}

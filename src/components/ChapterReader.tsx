@@ -3,12 +3,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { BookOpen, Coins, Lock, Unlock, Heart, Eye, EyeOff } from 'lucide-react';
+import { BookOpen, Coins, Lock, Unlock, Heart, Eye, EyeOff, Gift } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { useWeb3 } from '@/contexts/Web3Context';
 import { useToast } from '@/hooks/use-toast';
-import { purchaseChapterOnChain, getChapterAccessOnChain } from '@/integrations/web3/contracts';
 
 interface Chapter {
   id: string;
@@ -20,6 +18,13 @@ interface Chapter {
   created_at: string;
 }
 
+interface Story {
+  id: string;
+  title: string;
+  price_per_chapter: number;
+  author_id: string;
+}
+
 interface ChapterReaderProps {
   storyId: string;
   onPurchaseComplete?: () => void;
@@ -27,24 +32,39 @@ interface ChapterReaderProps {
 
 const ChapterReader = ({ storyId, onPurchaseComplete }: ChapterReaderProps) => {
   const [chapters, setChapters] = useState<Chapter[]>([]);
+  const [story, setStory] = useState<Story | null>(null);
   const [loading, setLoading] = useState(true);
   const [purchasing, setPurchasing] = useState<string | null>(null);
   const [userPurchases, setUserPurchases] = useState<Set<string>>(new Set());
   const [expandedChapters, setExpandedChapters] = useState<Set<string>>(new Set());
+  const [userCredits, setUserCredits] = useState<number>(0);
+  const [gettingCredits, setGettingCredits] = useState(false);
   
   const { user } = useAuth();
   const { toast } = useToast();
-  const { isConnected, contractsInitialized } = useWeb3();
 
   useEffect(() => {
     fetchChapters();
+    fetchStory();
     if (user) {
       fetchUserPurchases();
+      fetchUserCredits();
     }
   }, [storyId, user]);
 
   const fetchChapters = async () => {
     try {
+      console.log('Fetching chapters for story:', storyId);
+      
+      // First, try to fetch all chapters (bypassing RLS temporarily for debugging)
+      const { data: allChapters, error: allError } = await supabase
+        .from('chapters')
+        .select('*')
+        .eq('story_id', storyId);
+      
+      console.log('All chapters (bypassing RLS):', { allChapters, allError });
+      
+      // Then try the normal query with RLS
       const { data, error } = await supabase
         .from('chapters')
         .select('*')
@@ -52,8 +72,12 @@ const ChapterReader = ({ storyId, onPurchaseComplete }: ChapterReaderProps) => {
         .eq('published', true)
         .order('chapter_number');
 
+      console.log('Published chapters (with RLS):', { data, error });
+
       if (error) throw error;
       setChapters(data || []);
+      
+      console.log('Set chapters state:', data || []);
     } catch (error) {
       console.error('Error fetching chapters:', error);
       toast({
@@ -63,6 +87,21 @@ const ChapterReader = ({ storyId, onPurchaseComplete }: ChapterReaderProps) => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchStory = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('stories')
+        .select('id, title, price_per_chapter, author_id')
+        .eq('id', storyId)
+        .single();
+
+      if (error) throw error;
+      setStory(data);
+    } catch (error) {
+      console.error('Error fetching story:', error);
     }
   };
 
@@ -85,6 +124,76 @@ const ChapterReader = ({ storyId, onPurchaseComplete }: ChapterReaderProps) => {
     }
   };
 
+  const fetchUserCredits = async () => {
+    if (!user) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('wallet_balance')
+        .eq('user_id', user.id)
+        .single();
+
+      if (error) throw error;
+      setUserCredits(data?.wallet_balance || 0);
+    } catch (error) {
+      console.error('Error fetching user credits:', error);
+    }
+  };
+
+  const handleGetWelcomeCredits = async () => {
+    if (!user) return;
+
+    setGettingCredits(true);
+    try {
+      // Give new users 50 welcome credits
+      const welcomeCredits = 50;
+      
+      // Update user balance
+      const { error: balanceError } = await supabase
+        .from('profiles')
+        .update({
+          wallet_balance: userCredits + welcomeCredits,
+        })
+        .eq('user_id', user.id);
+
+      if (balanceError) throw balanceError;
+
+      // Create transaction record
+      const { error: transactionError } = await supabase
+        .from('transactions')
+        .insert({
+          from_user_id: null, // System generated
+          to_user_id: user.id,
+          story_id: null,
+          chapter_id: null,
+          amount: welcomeCredits,
+          transaction_type: 'donation',
+          status: 'completed',
+          completed_at: new Date().toISOString(),
+        });
+
+      if (transactionError) throw transactionError;
+
+      // Update local state
+      setUserCredits(prev => prev + welcomeCredits);
+
+      toast({
+        title: "Welcome Credits Added! 🎉",
+        description: `You've received ${welcomeCredits} welcome credits to get started.`,
+      });
+    } catch (error) {
+      console.error('Error adding welcome credits:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to add welcome credits. Please try again.",
+      });
+    } finally {
+      setGettingCredits(false);
+    }
+  };
+
   const handlePurchaseChapter = async (chapter: Chapter) => {
     if (!user) {
       toast({
@@ -94,48 +203,71 @@ const ChapterReader = ({ storyId, onPurchaseComplete }: ChapterReaderProps) => {
       return;
     }
 
-    if (!isConnected || !contractsInitialized) {
+    if (!story) {
       toast({
-        title: "Wallet not connected",
-        description: "Please connect your MetaMask wallet to purchase chapters",
+        variant: "destructive",
+        title: "Error",
+        description: "Story information not available",
+      });
+      return;
+    }
+
+    if (userCredits < story.price_per_chapter) {
+      toast({
+        variant: "destructive",
+        title: "Insufficient credits",
+        description: `You need ${story.price_per_chapter} credits to purchase this chapter. You have ${userCredits} credits.`,
       });
       return;
     }
 
     setPurchasing(chapter.id);
     try {
-      // Get story price from the story data
-      // For now, we'll use a default price - you'll need to pass this from the parent
-      const chapterPrice = 0.001; // 0.001 ETH per chapter
-      
-      // Purchase chapter via smart contract
-      const receipt = await purchaseChapterOnChain(
-        parseInt(storyId), // Convert to number for smart contract
-        parseInt(chapter.id), // Convert to number for smart contract
-        chapterPrice
-      );
-      
-      console.log('Chapter purchased on blockchain:', receipt);
-      
-      // Add to user purchases in database
-      const { error } = await supabase
+      // Create purchase record
+      const { error: purchaseError } = await supabase
         .from('user_chapter_access')
         .insert({
           user_id: user.id,
           story_id: storyId,
           chapter_id: chapter.id,
           purchased_at: new Date().toISOString(),
-          blockchain_tx_hash: receipt.transactionHash,
         });
 
-      if (error) throw error;
+      if (purchaseError) throw purchaseError;
+
+      // Create transaction record
+      const { error: transactionError } = await supabase
+        .from('transactions')
+        .insert({
+          from_user_id: user.id,
+          to_user_id: story.author_id,
+          story_id: storyId,
+          chapter_id: chapter.id,
+          amount: story.price_per_chapter,
+          transaction_type: 'purchase',
+          status: 'completed',
+          completed_at: new Date().toISOString(),
+        });
+
+      if (transactionError) throw transactionError;
+
+      // Update user balance
+      const { error: balanceError } = await supabase
+        .from('profiles')
+        .update({
+          wallet_balance: userCredits - story.price_per_chapter,
+        })
+        .eq('user_id', user.id);
+
+      if (balanceError) throw balanceError;
 
       // Update local state
       setUserPurchases(prev => new Set([...prev, chapter.id]));
+      setUserCredits(prev => prev - story.price_per_chapter);
 
       toast({
         title: "Chapter Purchased!",
-        description: "You now have access to this chapter",
+        description: `You've supported the author with ${story.price_per_chapter} credits`,
       });
 
       onPurchaseComplete?.();
@@ -194,8 +326,16 @@ const ChapterReader = ({ storyId, onPurchaseComplete }: ChapterReaderProps) => {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="text-xl font-semibold">Chapters ({chapters.length})</h3>
-        <div className="text-sm text-muted-foreground">
-          {chapters.filter(c => c.is_free).length} free • {chapters.filter(c => !c.is_free).length} paid
+        <div className="flex items-center space-x-4">
+          <div className="text-sm text-muted-foreground">
+            {chapters.filter(c => c.is_free).length} free • {chapters.filter(c => !c.is_free).length} paid
+          </div>
+          {user && (
+            <div className="text-sm text-green-600 font-medium">
+              <Coins className="h-3 w-3 inline mr-1" />
+              {userCredits} credits
+            </div>
+          )}
         </div>
       </div>
 
@@ -223,7 +363,7 @@ const ChapterReader = ({ storyId, onPurchaseComplete }: ChapterReaderProps) => {
                 {!chapter.is_free && !canReadChapter(chapter) && (
                   <Badge variant="outline" className="text-orange-600">
                     <Lock className="h-3 w-3 mr-1" />
-                    Locked
+                    {story?.price_per_chapter} credits
                   </Badge>
                 )}
               </div>
@@ -304,15 +444,69 @@ const ChapterReader = ({ storyId, onPurchaseComplete }: ChapterReaderProps) => {
         </Card>
       )}
 
-      {user && (!isConnected || !contractsInitialized) && (
+      {user && userCredits === 0 && (
+        <Card className="bg-green-50 border-green-200">
+          <CardContent className="p-4">
+            <div className="flex items-start justify-between">
+              <div className="flex items-start">
+                <Gift className="h-5 w-5 text-green-600 mr-2 mt-0.5" />
+                <div className="text-sm text-green-800">
+                  <p className="font-medium mb-1">Get Welcome Credits! 🎁</p>
+                  <p>New users get 50 free credits to start exploring stories. Click the button to claim yours!</p>
+                </div>
+              </div>
+              <Button
+                size="sm"
+                onClick={handleGetWelcomeCredits}
+                disabled={gettingCredits}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                {gettingCredits ? (
+                  <>
+                    <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white mr-2"></div>
+                    Adding...
+                  </>
+                ) : (
+                  <>
+                    <Gift className="h-3 w-3 mr-1" />
+                    Get Credits
+                  </>
+                )}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {user && userCredits > 0 && userCredits < (story?.price_per_chapter || 0) && (
         <Card className="bg-orange-50 border-orange-200">
           <CardContent className="p-4">
-            <div className="flex items-start">
-              <Coins className="h-5 w-5 text-orange-600 mr-2 mt-0.5" />
-              <div className="text-sm text-orange-800">
-                <p className="font-medium mb-1">Connect Your Wallet</p>
-                <p>Connect your MetaMask wallet to purchase chapters using blockchain technology.</p>
+            <div className="flex items-start justify-between">
+              <div className="flex items-start">
+                <Coins className="h-5 w-5 text-orange-600 mr-2 mt-0.5" />
+                <div className="text-sm text-orange-800">
+                  <p className="font-medium mb-1">Need More Credits</p>
+                  <p>You need {story?.price_per_chapter} credits to purchase chapters. You currently have {userCredits} credits.</p>
+                </div>
               </div>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleGetWelcomeCredits}
+                disabled={gettingCredits}
+              >
+                {gettingCredits ? (
+                  <>
+                    <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white mr-2"></div>
+                    Adding...
+                  </>
+                ) : (
+                  <>
+                    <Gift className="h-3 w-3 mr-1" />
+                    Get More
+                  </>
+                )}
+              </Button>
             </div>
           </CardContent>
         </Card>

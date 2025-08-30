@@ -19,6 +19,7 @@ import Dashboard from "./pages/Dashboard";
 import Wallet from "./pages/Wallet";
 import ImpactPage from "./pages/Impact";
 import Profile from "./pages/Profile";
+import AuthorProfile from "./pages/AuthorProfile";
 import NotFound from "./pages/NotFound";
 import { useEffect } from "react";
 
@@ -66,6 +67,7 @@ const AppRoutes = () => (
       <Route path="/wallet" element={<Wallet />} />
       <Route path="/impact" element={<ImpactPage />} />
       <Route path="/profile" element={<Profile />} />
+      <Route path="/author/:userId" element={<AuthorProfile />} />
       {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
       <Route path="*" element={<NotFound />} />
     </Routes>

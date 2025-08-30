@@ -15,19 +15,24 @@ interface Story {
   id: string;
   title: string;
   description: string;
-  cover_image_url: string;
+  cover_image_url?: string;
   price_per_chapter: number;
   total_chapters: number;
   is_anonymous: boolean;
   impact_percentage: number;
   blockchain_id?: string;
   blockchain_tx_hash?: string;
-  author_id: string;
-  category: {
+  category?: {
     name: string;
   };
   published: boolean;
   created_at: string;
+  author?: {
+    id: string;
+    display_name: string;
+    is_anonymous: boolean;
+    pseudonym?: string;
+  };
 }
 
 const Discover = () => {
@@ -288,13 +293,16 @@ const Discover = () => {
                     key={story.id}
                     id={story.id}
                     title={story.title}
-                    author={story.author_id ? story.author_id.slice(0, 6) + '...' + story.author_id.slice(-4) : 'Anonymous'}
+                    author={story.author?.is_anonymous && story.author?.pseudonym 
+                      ? story.author.pseudonym 
+                      : story.author?.display_name || 'Unknown Author'}
+                    authorId={story.author?.id}
                     description={story.description}
                     coverImage={story.cover_image_url || '/placeholder.svg'}
                     pricePerChapter={story.price_per_chapter}
                     totalChapters={story.total_chapters}
                     category={story.category?.name || 'Uncategorized'}
-                    isAnonymous={story.is_anonymous}
+                    isAnonymous={story.author?.is_anonymous || false}
                     impact={story.impact_percentage > 0 ? `${story.impact_percentage}% to shelters` : undefined}
                     blockchainInfo={story.blockchain_id ? {
                       id: story.blockchain_id,
@@ -347,13 +355,16 @@ const Discover = () => {
                     key={story.id}
                     id={story.id}
                     title={story.title}
-                    author={story.author_id ? story.author_id.slice(0, 6) + '...' + story.author_id.slice(-4) : 'Unknown'}
+                    author={story.author?.is_anonymous && story.author?.pseudonym 
+                      ? story.author.pseudonym 
+                      : story.author?.display_name || 'Unknown Author'}
+                    authorId={story.author?.id}
                     description={story.description}
                     coverImage={story.cover_image_url || '/placeholder.svg'}
                     pricePerChapter={story.price_per_chapter}
                     totalChapters={story.total_chapters}
                     category={story.category?.name || 'Uncategorized'}
-                    isAnonymous={story.is_anonymous}
+                    isAnonymous={story.author?.is_anonymous || false}
                     impact={story.impact_percentage > 0 ? `${story.impact_percentage}% to shelters` : undefined}
                     blockchainInfo={story.blockchain_id ? {
                       id: story.blockchain_id,
