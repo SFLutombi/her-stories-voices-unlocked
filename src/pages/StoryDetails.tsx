@@ -21,19 +21,9 @@ interface StoryDetails {
   is_anonymous: boolean;
   impact_percentage: number;
   created_at: string;
-  author: {
-    display_name: string;
-    bio: string;
-  };
   category: {
     name: string;
   };
-  chapters: Array<{
-    id: string;
-    chapter_number: number;
-    title: string;
-    is_free: boolean;
-  }>;
 }
 
 const StoryDetails = () => {
@@ -59,9 +49,7 @@ const StoryDetails = () => {
         .from('stories')
         .select(`
           *,
-          author:profiles!author_id(display_name, bio),
-          category:categories(name),
-          chapters(id, chapter_number, title, is_free)
+          category:categories(name)
         `)
         .eq('id', id)
         .eq('published', true)
@@ -195,7 +183,7 @@ const StoryDetails = () => {
     );
   }
 
-  const freeChapter = story.chapters.find(c => c.is_free);
+  // No chapters available yet
   const totalPrice = story.price_per_chapter * story.total_chapters;
 
   return (
@@ -269,21 +257,18 @@ const StoryDetails = () => {
                   <Separator />
 
                   <div className="space-y-2">
-                    {freeChapter && (
-                      <Button 
-                        className="w-full mb-2" 
-                        variant="outline"
-                        onClick={() => handleReadFreeChapter(freeChapter.id)}
-                      >
-                        Read Free Chapter
-                      </Button>
-                    )}
+                    <Button 
+                      className="w-full mb-2" 
+                      variant="outline"
+                      disabled
+                    >
+                      No Free Chapter Available
+                    </Button>
                     <Button 
                       className="w-full" 
-                      disabled={purchasing}
-                      onClick={() => story.chapters[1] && handlePurchaseChapter(story.chapters[1].id)}
+                      disabled
                     >
-                      {purchasing ? 'Purchasing...' : 'Buy Next Chapter'}
+                      No Chapters Available Yet
                     </Button>
                   </div>
                 </div>
@@ -300,7 +285,7 @@ const StoryDetails = () => {
                 <div className="flex items-center">
                   <User className="h-4 w-4 mr-2 text-muted-foreground" />
                   <span className="text-muted-foreground">
-                    by {story.is_anonymous ? 'Anonymous' : story.author.display_name}
+                    by {story.is_anonymous ? 'Anonymous' : 'Author'}
                   </span>
                 </div>
               </div>
@@ -310,16 +295,7 @@ const StoryDetails = () => {
               </p>
             </div>
 
-            {!story.is_anonymous && story.author.bio && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>About the Author</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-muted-foreground">{story.author.bio}</p>
-                </CardContent>
-              </Card>
-            )}
+            {/* Author bio section removed - data not available */}
 
             {/* Chapter List */}
             <Card>
@@ -327,53 +303,15 @@ const StoryDetails = () => {
                 <CardTitle>Chapters</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-3">
-                  {story.chapters
-                    .sort((a, b) => a.chapter_number - b.chapter_number)
-                    .map((chapter) => (
-                      <div
-                        key={chapter.id}
-                        className="flex items-center justify-between p-3 border rounded-lg hover:bg-accent/50 transition-colors"
-                      >
-                        <div>
-                          <h4 className="font-medium">
-                            Chapter {chapter.chapter_number}: {chapter.title}
-                          </h4>
-                          {chapter.is_free && (
-                            <Badge variant="secondary" className="mt-1">
-                              Free
-                            </Badge>
-                          )}
-                        </div>
-                        
-                        <div className="flex items-center space-x-2">
-                          {chapter.is_free ? (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleReadFreeChapter(chapter.id)}
-                            >
-                              Read Free
-                            </Button>
-                          ) : (
-                            <>
-                              <div className="flex items-center text-sm text-muted-foreground">
-                                <Coins className="h-3 w-3 mr-1" />
-                                {story.price_per_chapter}
-                              </div>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                disabled={purchasing}
-                                onClick={() => handlePurchaseChapter(chapter.id)}
-                              >
-                                Buy & Read
-                              </Button>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    ))}
+                <div className="text-center py-8">
+                  <BookOpen className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <h4 className="text-lg font-medium mb-2">No Chapters Yet</h4>
+                  <p className="text-muted-foreground mb-4">
+                    This story is published but doesn't have any chapters yet.
+                  </p>
+                  <Button variant="outline" disabled>
+                    Coming Soon
+                  </Button>
                 </div>
               </CardContent>
             </Card>
