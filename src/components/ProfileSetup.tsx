@@ -149,7 +149,7 @@ export const ProfileSetup = () => {
           .update({
             display_name: profileData.displayName,
             bio: profileData.bio,
-            is_author: profileData.role === 'writer' || profileData.role === 'both',
+            is_author: profileData.isAuthor || profileData.role === 'writer' || profileData.role === 'both',
             is_anonymous: profileData.isAnonymous,
             pseudonym: profileData.isAnonymous ? profileData.anonymousName : null,
             wallet_address: profileData.walletAddress,
@@ -168,7 +168,7 @@ export const ProfileSetup = () => {
             user_id: user.id,
             display_name: profileData.displayName,
             bio: profileData.bio,
-            is_author: profileData.role === 'writer' || profileData.role === 'both',
+            is_author: profileData.isAuthor || profileData.role === 'writer' || profileData.role === 'both',
             is_anonymous: profileData.isAnonymous,
             pseudonym: profileData.isAnonymous ? profileData.anonymousName : null,
             wallet_address: profileData.walletAddress,
@@ -180,7 +180,7 @@ export const ProfileSetup = () => {
       }
 
       // If author, create/update author profile
-      if (profileData.role === 'writer' || profileData.role === 'both') {
+      if (profileData.isAuthor || profileData.role === 'writer' || profileData.role === 'both') {
         console.log('Creating/updating author profile');
         
         const { error: authorError } = await supabase

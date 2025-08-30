@@ -274,6 +274,20 @@ export const createStoryOnChain = async (
   return await tx.wait();
 };
 
+export const registerAuthorOnChain = async (
+  pseudonym: string,
+  impactPercentage: number
+) => {
+  if (!integrationContract) throw new Error('Contracts not initialized');
+  
+  const tx = await integrationContract.registerAuthor(
+    pseudonym,
+    impactPercentage
+  );
+  
+  return await tx.wait();
+};
+
 export const addChapterOnChain = async (
   storyId: number,
   title: string,

@@ -63,6 +63,7 @@ const Dashboard = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState('overview');
   
   // Web3 integration
   const { 
@@ -102,6 +103,8 @@ const Dashboard = () => {
     networkName: string;
     isCorrectNetwork: boolean;
   } | null>(null);
+  const [isRegisteringAuthor, setIsRegisteringAuthor] = useState(false);
+  const [isAuthorRegistered, setIsAuthorRegistered] = useState(false);
 
   // Check current network status
   const checkCurrentNetwork = async () => {
@@ -123,6 +126,64 @@ const Dashboard = () => {
     }
   };
 
+  // Register user as author on blockchain
+  const registerAuthorOnBlockchain = async () => {
+    if (!isConnected) {
+      toast({
+        variant: "destructive",
+        title: "Connection Required",
+        description: "Please connect your MetaMask wallet first.",
+      });
+      return;
+    }
+
+    if (!contractsInitialized) {
+      toast({
+        variant: "destructive",
+        title: "Smart Contracts Not Ready",
+        description: "Please wait for smart contracts to initialize before registering as an author.",
+      });
+      return;
+    }
+
+    if (!account) {
+      toast({
+        variant: "destructive",
+        title: "Account Required",
+        description: "Please ensure your MetaMask wallet is connected and unlocked.",
+      });
+      return;
+    }
+
+    setIsRegisteringAuthor(true);
+    try {
+      // Import the function from contracts
+      const { registerAuthorOnChain } = await import('@/integrations/web3/contracts');
+      
+      // Register author with pseudonym and impact percentage
+      const pseudonym = profile?.display_name || 'Anonymous Author';
+      const impactPercentage = 10; // Default impact percentage
+      
+      const tx = await registerAuthorOnChain(pseudonym, impactPercentage);
+      
+      toast({
+        title: "Author Registration Successful!",
+        description: "You can now create stories on the blockchain.",
+      });
+      
+      setIsAuthorRegistered(true);
+    } catch (error: any) {
+      console.error('Failed to register author:', error);
+      toast({
+        variant: "destructive",
+        title: "Registration Failed",
+        description: error.message || 'Failed to register as author on blockchain',
+      });
+    } finally {
+      setIsRegisteringAuthor(false);
+    }
+  };
+
   useEffect(() => {
     if (user) {
       fetchAuthorData();
@@ -132,6 +193,28 @@ const Dashboard = () => {
       navigate('/auth');
     }
   }, [user]);
+
+  // Check author registration when contracts are ready
+  useEffect(() => {
+    if (isConnected && contractsInitialized && account) {
+      checkAuthorRegistration();
+    }
+  }, [isConnected, contractsInitialized, account]);
+
+  // Check if user is registered as author on blockchain
+  const checkAuthorRegistration = async () => {
+    if (!isConnected || !contractsInitialized || !account) return;
+    
+    try {
+      const { getUserProfileOnChain } = await import('@/integrations/web3/contracts');
+      const profile = await getUserProfileOnChain(account);
+      // If we can get the profile, user is registered
+      setIsAuthorRegistered(true);
+    } catch (error) {
+      // User is not registered as author
+      setIsAuthorRegistered(false);
+    }
+  };
 
   const fetchCategories = async () => {
     const { data } = await supabase
@@ -408,15 +491,45 @@ const Dashboard = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex space-x-2">
-            <Button 
-              onClick={addAndSwitchToPrimordialTestnet} 
-              variant="outline" 
-              size="sm"
-              className="text-xs"
-            >
-              Switch to Primordial Testnet
-            </Button>
+          <div className="space-y-3">
+            <div className="flex space-x-2">
+              <Button 
+                onClick={addAndSwitchToPrimordialTestnet} 
+                variant="outline" 
+                size="sm"
+                className="text-xs"
+              >
+                Switch to Primordial Testnet
+              </Button>
+            </div>
+            
+            {!isAuthorRegistered && (
+              <div className="text-xs text-orange-600 bg-orange-100 p-2 rounded">
+                <p className="font-medium">Author Registration Required:</p>
+                <p>You need to register as an author on the blockchain before creating stories.</p>
+                {!contractsInitialized && (
+                  <p className="mt-1 text-red-600">⚠️ Smart contracts are still initializing. Please wait...</p>
+                )}
+                <Button 
+                  onClick={registerAuthorOnBlockchain}
+                  disabled={isRegisteringAuthor || !contractsInitialized}
+                  variant="outline"
+                  size="sm"
+                  className="mt-2 w-full bg-orange-50 hover:bg-orange-100"
+                >
+                  {isRegisteringAuthor ? 'Registering...' : 
+                   !contractsInitialized ? 'Waiting for Contracts...' : 
+                   'Register as Author'}
+                </Button>
+              </div>
+            )}
+            
+            {isAuthorRegistered && (
+              <div className="text-xs text-green-600 bg-green-100 p-2 rounded">
+                <p className="font-medium">✓ Author Registered:</p>
+                <p>You can now create stories on the blockchain!</p>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -492,7 +605,7 @@ const Dashboard = () => {
 
         {renderWeb3Status()}
 
-        <Tabs defaultValue="overview" className="space-y-6 mt-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6 mt-6">
           <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:grid-cols-4">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="stories">Stories</TabsTrigger>
@@ -562,7 +675,7 @@ const Dashboard = () => {
                     <p className="text-muted-foreground mb-4">
                       Start sharing your voice with the world
                     </p>
-                    <Button onClick={() => navigate('/dashboard?tab=create')}>
+                    <Button onClick={() => setActiveTab('create')}>
                       Create Your First Story
                     </Button>
                   </div>
@@ -595,7 +708,7 @@ const Dashboard = () => {
           <TabsContent value="stories" className="space-y-6">
             <div className="flex justify-between items-center">
               <h2 className="text-2xl font-bold">My Stories</h2>
-              <Button onClick={() => navigate('/dashboard?tab=create')}>
+              <Button onClick={() => setActiveTab('create')}>
                 <Plus className="h-4 w-4 mr-2" />
                 New Story
               </Button>
@@ -758,14 +871,35 @@ const Dashboard = () => {
                       <div className="text-sm text-muted-foreground">
                         <p>✓ Connected to {network}</p>
                         <p>✓ Smart contracts ready</p>
+                        {!isAuthorRegistered && (
+                          <p className="text-orange-600">⚠️ Author registration required</p>
+                        )}
+                        {!isAuthorRegistered && !contractsInitialized && (
+                          <p className="text-red-600">⚠️ Smart contracts are still initializing</p>
+                        )}
                       </div>
-                      <Button 
-                        type="submit" 
-                        className="w-full md:w-auto"
-                        disabled={creatingStory}
-                      >
-                        {creatingStory ? 'Creating on Blockchain...' : 'Create Story on Blockchain'}
-                      </Button>
+                      <div className="flex space-x-2">
+                        {!isAuthorRegistered && (
+                          <Button 
+                            type="button"
+                            onClick={registerAuthorOnBlockchain}
+                            disabled={isRegisteringAuthor || !contractsInitialized}
+                            variant="outline"
+                            className="bg-orange-50 hover:bg-orange-100"
+                          >
+                            {isRegisteringAuthor ? 'Registering...' : 
+                             !contractsInitialized ? 'Waiting for Contracts...' : 
+                             'Register as Author'}
+                          </Button>
+                        )}
+                        <Button 
+                          type="submit" 
+                          className="w-full md:w-auto"
+                          disabled={creatingStory || !isAuthorRegistered}
+                        >
+                          {creatingStory ? 'Creating on Blockchain...' : 'Create Story on Blockchain'}
+                        </Button>
+                      </div>
                     </div>
                   </form>
                 )}
