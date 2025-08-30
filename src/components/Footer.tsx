@@ -10,7 +10,7 @@ export const Footer = () => {
           <div className="md:col-span-2">
             <div className="flex items-center space-x-2 mb-6">
               <Heart className="h-8 w-8 text-primary" />
-              <h3 className="text-2xl font-bold gradient-primary bg-clip-text text-transparent">
+              <h3 className="text-2xl font-bold text-primary">
                 HerStories
               </h3>
             </div>

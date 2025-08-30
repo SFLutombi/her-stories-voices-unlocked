@@ -45,7 +45,7 @@ export const FeaturedStories = () => {
       <div className="container mx-auto px-6">
         <div className="text-center mb-16">
           <h2 className="text-4xl md:text-5xl font-bold mb-6">
-            Featured <span className="gradient-primary bg-clip-text text-transparent">Stories</span>
+            Featured <span className="text-primary">Stories</span>
           </h2>
           <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
             Discover powerful narratives from South African women. 
