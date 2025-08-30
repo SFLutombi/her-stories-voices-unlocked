@@ -13,5 +13,47 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     storage: localStorage,
     persistSession: true,
     autoRefreshToken: true,
+    flowType: 'pkce',
+    detectSessionInUrl: true
   }
 });
+
+// Handle auth callback from URL query params (authorization code flow)
+if (typeof window !== 'undefined') {
+  const urlParams = new URLSearchParams(window.location.search);
+  const code = urlParams.get('code');
+  
+  if (code) {
+    console.log('Supabase client: Detected auth code, redirecting to callback');
+    // This is an auth callback with authorization code
+    const currentPath = window.location.pathname;
+    if (currentPath !== '/auth/callback') {
+      // Redirect to auth callback route with the code
+      window.location.href = `/auth/callback?code=${code}`;
+    }
+  }
+}
+
+// Export a function to manually handle auth callbacks if needed
+export const handleAuthCallback = async (code: string) => {
+  try {
+    console.log('Manual auth callback handler called with code:', code ? 'present' : 'missing');
+    
+    if (!code) {
+      throw new Error('No authorization code provided');
+    }
+    
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+    
+    if (error) {
+      console.error('Manual auth callback error:', error);
+      throw error;
+    }
+    
+    console.log('Manual auth callback successful:', data);
+    return { data, error: null };
+  } catch (err) {
+    console.error('Manual auth callback failed:', err);
+    return { data: null, error: err };
+  }
+};

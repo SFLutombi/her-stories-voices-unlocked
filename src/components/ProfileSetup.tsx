@@ -126,27 +126,55 @@ export const ProfileSetup = () => {
 
   const handleComplete = async () => {
     if (!user) return;
-    
+
     setLoading(true);
     try {
-      // Create or update profile in Supabase
-      const { error: profileError } = await supabase
+      // First, check if a profile already exists
+      const { data: existingProfile, error: checkError } = await supabase
         .from('profiles')
-        .upsert({
-          user_id: user.id,
-          display_name: profileData.displayName,
-          bio: profileData.bio,
-          is_author: profileData.role === 'writer' || profileData.role === 'both',
-          is_anonymous: profileData.isAnonymous,
-          updated_at: new Date().toISOString()
-        });
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
 
-      if (profileError) throw profileError;
+      if (checkError && checkError.code !== 'PGRST116') { // PGRST116 = no rows returned
+        console.error('Error checking existing profile:', checkError);
+        throw checkError;
+      }
 
-      // Store additional author metadata in a separate table or as JSON
+      if (existingProfile) {
+        console.log('Profile already exists, updating instead of creating');
+        // Update existing profile
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({
+            display_name: profileData.displayName,
+            bio: profileData.bio,
+            is_author: profileData.role === 'writer' || profileData.role === 'both',
+            is_anonymous: profileData.isAnonymous,
+            updated_at: new Date().toISOString()
+          })
+          .eq('user_id', user.id);
+
+        if (updateError) throw updateError;
+      } else {
+        console.log('Creating new profile');
+        // Create new profile
+        const { error: createError } = await supabase
+          .from('profiles')
+          .insert({
+            user_id: user.id,
+            display_name: profileData.displayName,
+            bio: profileData.bio,
+            is_author: profileData.role === 'writer' || profileData.role === 'both',
+            is_anonymous: profileData.isAnonymous,
+            updated_at: new Date().toISOString()
+          });
+
+        if (createError) throw createError;
+      }
+
+      // Store additional author metadata in localStorage
       if (profileData.role === 'writer' || profileData.role === 'both') {
-        // For now, store in localStorage as we'll need to create a proper table
-        // In production, you'd want to create an 'author_profiles' table
         const authorData = {
           user_id: user.id,
           anonymous_name: profileData.anonymousName,
@@ -155,30 +183,43 @@ export const ProfileSetup = () => {
           impact_percentage: profileData.impactPercentage,
           created_at: new Date().toISOString()
         };
-        
+
         localStorage.setItem(`authorProfile_${user.id}`, JSON.stringify(authorData));
-        
-        // TODO: Create proper table structure for author profiles
-        // const { error: authorError } = await supabase
-        //   .from('author_profiles')
-        //   .upsert(authorData);
-        // if (authorError) throw authorError;
+        console.log('Author profile data stored in localStorage:', authorData);
       }
 
-      // Clear localStorage
+      // Clear onboarding data
       localStorage.removeItem('authorSetup');
 
       toast({
-        title: "Profile Setup Complete!",
-        description: "Welcome to HerStories. You can now start publishing your stories.",
+        title: "Profile Setup Complete! 🎉",
+        description: "Welcome to HerStories! You can now start publishing your stories and connecting with readers.",
       });
 
       navigate('/dashboard');
     } catch (error: any) {
+      console.error('Profile setup error:', error);
+      
+      // User-friendly error message
+      let userMessage = "Something went wrong while setting up your profile. Please try again.";
+      
+      if (error.code === '23505') { // Unique constraint violation
+        userMessage = "It looks like your profile was already set up. Redirecting you to the dashboard...";
+        // Redirect after a short delay
+        setTimeout(() => navigate('/dashboard'), 2000);
+      } else if (error.message?.includes('duplicate key')) {
+        userMessage = "Your profile is already set up! Taking you to the dashboard...";
+        setTimeout(() => navigate('/dashboard'), 2000);
+      } else if (error.message?.includes('network') || error.message?.includes('fetch')) {
+        userMessage = "Network connection issue. Please check your internet and try again.";
+      } else if (error.message?.includes('timeout')) {
+        userMessage = "Request timed out. Please try again.";
+      }
+
       toast({
         variant: "destructive",
-        title: "Error",
-        description: error.message || "Failed to complete profile setup",
+        title: "Setup Issue",
+        description: userMessage,
       });
     } finally {
       setLoading(false);

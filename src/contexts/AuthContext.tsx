@@ -6,7 +6,7 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
-  signUp: (email: string, password: string, displayName?: string) => Promise<{ error: any }>;
+  signUp: (email: string, password: string, displayName?: string) => Promise<{ error: any; data?: any }>;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
 }
@@ -47,19 +47,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const signUp = async (email: string, password: string, displayName?: string) => {
-    const redirectUrl = `${window.location.origin}/`;
+    console.log('AuthContext: Starting signup for:', email);
     
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: redirectUrl,
-        data: {
-          display_name: displayName
+    try {
+      // Don't set emailRedirectTo to avoid hash fragment issues
+      const { error, data } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            display_name: displayName
+          }
         }
+      });
+      
+      console.log('AuthContext: Signup response:', { error, data });
+      
+      if (error) {
+        console.error('AuthContext: Signup error:', error);
+      } else {
+        console.log('AuthContext: Signup successful, user:', data.user);
+        console.log('AuthContext: Session:', data.session);
+        console.log('AuthContext: Email confirmation sent:', data.user?.email_confirmed_at ? 'No' : 'Yes');
       }
-    });
-    return { error };
+      
+      // Return both error and data for better handling
+      return { error, data };
+    } catch (err) {
+      console.error('AuthContext: Unexpected error during signup:', err);
+      return { error: err };
+    }
   };
 
   const signIn = async (email: string, password: string) => {
