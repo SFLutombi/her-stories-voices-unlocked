@@ -5,7 +5,7 @@ South African women's stories, whether novels, survival stories, or life lessons
 ## 🎬 Demo Video
 
 👉 [Watch Demo](#)  
-👉 [Live App](#)
+👉 [Live App](https://www.loom.com/share/764cf0d08c5b42b4932b23ab110726e5)
 
 ## 💡 Why It Matters (Impact)
 
