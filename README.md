@@ -1,18 +1,94 @@
-# HerStories - Voices Unlocked
+# 📚 HerStories: A Blockchain Marketplace for Women's Voices
 
-A decentralized storytelling platform where women's voices are amplified through blockchain technology and community support.
+South African women's stories, whether novels, survival stories, or life lessons, are often undervalued or silenced. HerStories lets women publish, share, and monetize their words one chapter at a time.
 
-## 🚀 **Quick Start**
+## 🎬 Demo Video
 
-### **Prerequisites**
-- Node.js 18+ 
-- Supabase account
-- MetaMask wallet (for blockchain features)
+👉 [Watch Demo](#)  
+👉 [Live App](#)
 
-### **Installation**
+## 💡 Why It Matters (Impact)
+
+- **Women writers earn directly from readers**, no publishers taking 70%
+- **Survivors of GBV can share anonymously** and still receive support
+- **Micro-pricing (chapters for cents)** makes knowledge and stories accessible to low-income readers
+- **Turns storytelling into a sustainable economy** of women's voices
+
+## 🏆 How We Meet Judging Criteria
+
+### **Impact on SA Women**
+
+From a township to a city, women's stories reach readers who value them and their earnings go straight into their hands.
+
+Survivors and emerging authors can share their voices safely, turning lived experience into tangible support.
+
+### **Technical Skill & Scalability**
+- Built a fully functional demo with MetaMask integration, deployed smart contracts, and user account management
+- Implemented chapter creation, management, and payment facilitation to transfer funds between MetaMask wallets
+- Created a complete blockchain-based storytelling platform with real-time transaction verification
+
+### **Clear Blockchain Use Case**
+- Blockchain's immutable ledger ensures story ownership and royalty distribution are permanently recorded
+- Smart contracts automatically enforce payment terms and eliminate the need for trust in traditional publishing intermediaries
+- Decentralized payments enable direct author-reader transactions without platform fees or delays
+
+### **Creative Use of Blockchain Tools**
+
+**Stories as assets**: We treat each chapter as a verifiable, monetizable digital asset. Blockchain allows the story itself, not just money, to carry real value.
+
+**Micro-empowerment at scale**: Tiny, instant payments let readers support individual chapters, something traditional blockchains make impossible due to high fees. Each contribution becomes meaningful in real-time.
+
+**Visible impact in action**: Tools like wallets and explorers, usually used for financial tracking, become proof that support is reaching the author, making empowerment tangible and immediate.
+
+**Trust engine for creativity**: By reframing blockchain as a trust engine for creativity and lived experience, we transform it from a financial ledger into a social platform for women's voices.
+
+## ⚡ Why Blockchain Makes This Possible
+
+HerStories is only viable because blockchain technology removes the exact barriers that killed similar attempts with traditional payment systems.
+
+**Tiny, fast payments** - Traditional payment systems fail at small payments (fees > content cost). With blockchain, a 1R chapter purchase actually works.
+
+**Low fees & instant settlement** - Payments arrive in real-time, giving authors confidence that their words are valued immediately.
+
+**Transparency without middlemen** - Every transaction is traceable on the blockchain, so readers and authors trust the system without needing a platform "cut."
+
+**Cross-border reach** - Remove barriers for authors and readers across Africa, where traditional payment rails fail.
+
+👉 **Blockchain isn't just powering HerStories — it's opening doors for features we haven't even built yet.**
+
+## 🚀 Growth Potential
+
+Existing platforms like Wattpad, Medium, or Patreon give writers exposure — but all face practical limitations:
+
+**Wattpad** – creators get readers but almost no income.
+
+**Medium** – subscription-focused, mostly for US/Europe audiences.
+
+**Patreon** – blocked in many countries, with high fees cutting into creators' earnings.
+
+👉 **HerStories, powered by blockchain, overcomes these barriers:**
+
+**Cross-border micro-payments** – readers in Lagos, Nairobi, Cape Town, or anywhere in the world can instantly support voices that are too often overlooked.
+
+**Transparent platform fees** – a small, fair fee sustains the platform while maximizing earnings for the people telling these stories.
+
+**Ultra-low transaction costs** – micro-chapters (a few cents each) make storytelling from every community accessible and financially viable.
+
+This isn't just scaling within South Africa, it's a continent-wide and global storytelling economy, where overlooked voices are empowered, readers can participate affordably, and the platform grows sustainably across borders.
+
+## 🔄 System Overview
+
+```
+Reader → Chapter Purchase → Smart Contract → Blockchain Payment → Author Wallet
+```
+
+## 👨‍💻 Developer Guide
+
+### 🚀 Quickstart
+
 ```bash
-# Clone the repository
-git clone https://github.com/your-username/her-stories-voices-unlocked.git
+# Clone repo
+git clone https://github.com/your-repo/her-stories-voices-unlocked.git
 cd her-stories-voices-unlocked
 
 # Install dependencies
@@ -22,104 +98,54 @@ npm install
 cp .env.example .env.local
 # Edit .env.local with your Supabase and blockchain credentials
 
-# Start development server
+# Run dev server
 npm run dev
 ```
 
-## 🗄️ **Database Setup (IMPORTANT!)**
+### 📋 Smart Contract Structure
 
-**⚠️ CRITICAL: You MUST set up the database before running the application!**
+**HerStoriesStory.sol**
+- `publishChapter()` - Uploads metadata & sets price
+- `buyChapter()` - Handles micro-payment & access rights
+- `distributeFunds()` - Sends payment to author (+ optional NGO)
 
-The database setup is **multi-step** and must be run in the correct order to avoid conflicts.
+**HerStoriesCredits.sol**
+- Credit system for chapter purchases
+- Token-based economy
 
-### **📖 Complete Setup Guide**
-See **[DATABASE_SETUP_COMPLETE.md](./DATABASE_SETUP_COMPLETE.md)** for detailed, step-by-step instructions.
+**HerStoriesPayment.sol**
+- Payment processing and distribution
+- Multi-signature security
 
-### **🚨 Quick Setup Order**
-1. **Initial Schema** → `supabase/migrations/20250830142719_7cdbebdd-a286-4cc7-96ad-eb61bc2e210a.sql`
-2. **Enhanced Profiles** → `database_schema_updates.sql`
-3. **Chapter Purchases** → `setup_chapter_purchases.sql`
-4. **Blockchain (Optional)** → `blockchain_schema_updates.sql`
+**HerStoriesIntegration.sol**
+- Integration layer between contracts
+- Cross-contract communication
 
-**DO NOT skip steps or run out of order!**
+### 🔧 Deployment (Blockchain)
 
-### **🔧 Database Setup Commands**
 ```bash
-# 1. Go to Supabase Dashboard → SQL Editor
-# 2. Copy and paste each script in order
-# 3. Wait for each to complete before proceeding
-# 4. Verify setup with provided test queries
+# Compile contracts
+cd contracts
+npm install
+npx hardhat compile
+
+# Deploy to testnet
+npx hardhat deploy --network testnet
+
+# Deploy to mainnet
+npx hardhat deploy --network mainnet
 ```
 
-## 🌟 **Features**
+### ⚙️ Environment Variables
 
-### **Core Functionality**
-- **User Authentication** - Secure signup/login with Supabase Auth
-- **Story Creation** - Rich text editor for creating and editing stories
-- **Chapter Management** - Organize stories into chapters with free/paid options
-- **Credit System** - Purchase chapters using platform credits
-- **Author Profiles** - Professional author profiles with earnings tracking
-
-### **Blockchain Integration**
-- **Smart Contracts** - Ethereum-based story ownership and payments
-- **MetaMask Integration** - Seamless wallet connection
-- **Decentralized Storage** - IPFS integration for story content
-- **Token Economics** - HSC (HerStories Credits) token system
-
-### **Community Features**
-- **Story Discovery** - Browse and discover new stories
-- **Reader Engagement** - Like, comment, and support authors
-- **Impact Tracking** - Percentage of earnings go to women's shelters
-- **Author Support** - Direct tipping and chapter purchases
-
-## 🏗️ **Architecture**
-
-### **Frontend**
-- **React 18** with TypeScript
-- **Vite** for fast development and building
-- **Tailwind CSS** for styling
-- **Shadcn/ui** for UI components
-- **React Router** for navigation
-
-### **Backend**
-- **Supabase** for authentication and database
-- **PostgreSQL** with Row Level Security (RLS)
-- **Real-time subscriptions** for live updates
-
-### **Blockchain**
-- **Ethereum** smart contracts (Solidity)
-- **MetaMask** wallet integration
-- **IPFS** for decentralized content storage
-
-## 📁 **Project Structure**
-
-```
-her-stories-voices-unlocked/
-├── src/
-│   ├── components/          # React components
-│   ├── pages/              # Page components
-│   ├── contexts/           # React contexts
-│   ├── hooks/              # Custom hooks
-│   ├── integrations/       # External service integrations
-│   ├── services/           # Business logic services
-│   ├── types/              # TypeScript type definitions
-│   └── utils/              # Utility functions
-├── contracts/              # Smart contract source code
-├── supabase/               # Database migrations and config
-├── public/                 # Static assets
-└── docs/                   # Documentation
-```
-
-## 🔐 **Environment Variables**
-
-Create a `.env.local` file with:
+Create `.env.local` file:
 
 ```env
 # Supabase
 VITE_SUPABASE_URL=your_supabase_url
 VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
 
-# Blockchain (Optional)
+# Blockchain
 VITE_ETHEREUM_NETWORK=mainnet
 VITE_CONTRACT_ADDRESSES={"story":"0x...","credits":"0x...","payment":"0x..."}
 
@@ -127,109 +153,69 @@ VITE_CONTRACT_ADDRESSES={"story":"0x...","credits":"0x...","payment":"0x..."}
 VITE_IPFS_GATEWAY=https://ipfs.io/ipfs/
 ```
 
-## 🧪 **Testing**
+### 🔌 API Endpoints
 
-### **Unit Tests**
+- `POST /api/publish` - Upload new chapter metadata
+- `POST /api/buy` - Execute smart contract purchase
+- `GET /api/chapters/:id` - Fetch chapter details
+- `GET /api/author/:wallet` - View author's works
+
+### 🤝 Contributing Guide
+
+#### **Getting Started**
 ```bash
-npm run test
+git clone https://github.com/your-username/her-stories-voices-unlocked.git
+cd her-stories-voices-unlocked
+npm install
+cp .env.example .env.local
+npm run dev
 ```
 
-### **Integration Tests**
-```bash
-npm run test:integration
-```
+#### **Common Contributions**
 
-### **E2E Tests**
-```bash
-npm run test:e2e
-```
-
-## 🚀 **Deployment**
-
-### **Frontend (Vercel/Netlify)**
-```bash
-npm run build
-# Deploy dist/ folder
-```
-
-### **Smart Contracts**
+**Testing Smart Contracts** - Run tests in `contracts/` directory:
 ```bash
 cd contracts
-npm run deploy:mainnet
+npx hardhat test
+# Or test specific file
+npx hardhat test test/YourContract.test.js
 ```
 
-### **Database**
-- Supabase automatically handles database deployment
-- Run migrations in production environment
+**Adding Smart Contracts** - Create in `contracts/` directory:
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
 
-## 🤝 **Contributing**
+contract NewContract {
+    // Your logic here
+}
+```
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+#### **Submitting Changes**
+```bash
+git checkout -b feature/your-feature
+git add . && git commit -m "feat: description"
+git push origin feature/your-feature
+# Create Pull Request
+```
 
-### **Development Guidelines**
-- Follow TypeScript best practices
-- Use conventional commit messages
-- Write tests for new features
-- Update documentation as needed
+**Guidelines**: Use TypeScript, Tailwind CSS, Shadcn/ui components, and conventional commits.
 
-## 📚 **Documentation**
+## 🌟 How You Can Help
 
-- **[Database Setup](./DATABASE_SETUP_COMPLETE.md)** - Complete database setup guide
-- **[Smart Contract Integration](./SMART_CONTRACT_INTEGRATION.md)** - Blockchain setup details
-- **[API Reference](./docs/API.md)** - Backend API documentation
-- **[Component Library](./docs/COMPONENTS.md)** - UI component documentation
+HerStories has abstracted away the crypto complexity. Readers pay seamlessly, authors receive seamlessly — all powered by blockchain under the hood.
 
-## 🐛 **Troubleshooting**
+You can:
 
-### **Common Issues**
+- **Contribute code** - add features like group royalties, safe spaces for survivors, richer publishing tools
+- **Publish stories** - earn from your words without needing a publisher
+- **Become a reader** - for just a few cents, you support women directly
+- **Partner with us** - NGOs, educators, and cultural groups can plug into this model immediately
 
-#### **Database Connection Errors**
-- Verify Supabase credentials in `.env.local`
-- Check database setup completion
-- Ensure RLS policies are configured
+👉 **For authors, this means new income streams. For readers, it means affordable access. For partners, it means scalable impact with proof.**
 
-#### **Blockchain Integration Issues**
-- Verify MetaMask is installed and connected
-- Check network configuration
-- Ensure smart contracts are deployed
+The problems that held back digital storytelling — high fees, platform exploitation, cross-border friction — are now solved through blockchain technology.
 
-#### **Build Errors**
-- Clear `node_modules` and reinstall
-- Check Node.js version compatibility
-- Verify TypeScript compilation
+## 📄 License
 
-### **Getting Help**
-1. Check the [Issues](../../issues) page
-2. Review the troubleshooting guides
-3. Join our [Discord community](link-to-discord)
-4. Create a detailed issue report
-
-## 📄 **License**
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🙏 **Acknowledgments**
-
-- **Supabase** for the amazing backend platform
-- **Ethereum Foundation** for blockchain technology
-- **OpenZeppelin** for secure smart contract libraries
-- **Shadcn/ui** for beautiful UI components
-- **Vite** for the fast build tooling
-
-## 🌟 **Support the Project**
-
-If you find this project helpful, please consider:
-
-- ⭐ Starring the repository
-- 🐛 Reporting bugs and issues
-- 💡 Suggesting new features
-- 🤝 Contributing code or documentation
-- 💰 Supporting development through donations
-
----
-
-**Made with ❤️ by the HerStories team**
+MIT License © 2025 HerStories

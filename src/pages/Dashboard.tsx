@@ -129,58 +129,35 @@ const Dashboard = () => {
     }
   };
 
-  // Register user as author on blockchain
   const registerAuthorOnBlockchain = async () => {
-    if (!isConnected) {
-      toast({
-        variant: "destructive",
-        title: "Connection Required",
-        description: "Please connect your MetaMask wallet first.",
-      });
-      return;
-    }
-
-    if (!contractsInitialized) {
-      toast({
-        variant: "destructive",
-        title: "Smart Contracts Not Ready",
-        description: "Please wait for smart contracts to initialize before registering as an author.",
-      });
-      return;
-    }
-
-    if (!account) {
-      toast({
-        variant: "destructive",
-        title: "Account Required",
-        description: "Please ensure your MetaMask wallet is connected and unlocked.",
-      });
-      return;
-    }
-
+    // Simple author registration - no blockchain needed
     setIsRegisteringAuthor(true);
     try {
-      // Import the function from contracts
-      const { registerAuthorOnChain } = await import('@/integrations/web3/contracts');
-      
-      // Register author with pseudonym and impact percentage
-      const pseudonym = profile?.display_name || 'Anonymous Author';
-      const impactPercentage = 10; // Default impact percentage
-      
-      const tx = await registerAuthorOnChain(pseudonym, impactPercentage);
-      
+      // Update the profile to mark as author in Supabase
+      const { error } = await supabase
+        .from('profiles')
+        .update({ is_author: true })
+        .eq('user_id', user?.id);
+
+      if (error) {
+        throw error;
+      }
+
       toast({
-        title: "Author Registration Successful!",
-        description: "You can now create stories on the blockchain.",
+        title: "Author Status Updated!",
+        description: "You are now marked as an author in the system.",
       });
       
       setIsAuthorRegistered(true);
+      
+      // Refresh the profile data
+      fetchAuthorData();
     } catch (error: any) {
-      console.error('Failed to register author:', error);
+      console.error('Failed to update author status:', error);
       toast({
         variant: "destructive",
-        title: "Registration Failed",
-        description: error.message || 'Failed to register as author on blockchain',
+        title: "Update Failed",
+        description: error.message || 'Failed to update author status',
       });
     } finally {
       setIsRegisteringAuthor(false);
@@ -197,60 +174,32 @@ const Dashboard = () => {
     }
   }, [user]);
 
-  // Check author registration when contracts are ready
+  // Check author registration when profile is loaded
   useEffect(() => {
-    if (isConnected && contractsInitialized && account) {
+    if (user && profile) {
       checkAuthorRegistration();
     }
-  }, [isConnected, contractsInitialized, account]);
+  }, [user, profile]);
 
-  // Check if user is registered as author on blockchain
+  // Check if user is registered as author
   const checkAuthorRegistration = async () => {
-    if (!isConnected || !contractsInitialized || !account) {
-      console.log('checkAuthorRegistration: Missing requirements:', { 
-        isConnected, 
-        contractsInitialized, 
-        account 
-      });
+    if (!user || !profile) {
       return;
     }
     
     try {
-      console.log('checkAuthorRegistration: Checking author status for account:', account);
-      const { getUserProfileOnChain } = await import('@/integrations/web3/contracts');
-      const profile = await getUserProfileOnChain(account);
-      console.log('checkAuthorRegistration: Author profile found:', profile);
+      console.log('checkAuthorRegistration: Checking author status for user:', user.id);
       
-      // Check if this is actually a valid, active author profile
-      // The profile should have a valid author address (not zero address) and be active
-      if (profile && 
-          profile.author && 
-          profile.author !== '0x0000000000000000000000000000000000000000' && 
-          profile.author.toLowerCase() === account.toLowerCase() &&
-          profile.isActive) {
-        console.log('checkAuthorRegistration: Valid active author profile found');
+      // Simply check if the user is marked as an author in their profile
+      if (profile?.is_author) {
+        console.log('checkAuthorRegistration: User is marked as author in profile');
         setIsAuthorRegistered(true);
-        
-        // Show success message if this is the first time we're detecting registration
-        if (!isAuthorRegistered) {
-          toast({
-            title: "Author Status Confirmed! 🎉",
-            description: "You are registered as an author on the blockchain and can create stories.",
-          });
-        }
       } else {
-        console.log('checkAuthorRegistration: Profile found but not a valid active author:', {
-          requestedAccount: account,
-          profileAuthor: profile?.author,
-          isActive: profile?.isActive,
-          pseudonym: profile?.pseudonym,
-          addressesMatch: profile?.author?.toLowerCase() === account?.toLowerCase()
-        });
+        console.log('checkAuthorRegistration: User is not marked as author');
         setIsAuthorRegistered(false);
       }
     } catch (error) {
-      console.log('checkAuthorRegistration: User not registered as author:', error);
-      // User is not registered as author
+      console.log('checkAuthorRegistration: Error checking author status:', error);
       setIsAuthorRegistered(false);
     }
   };
@@ -658,6 +607,63 @@ const Dashboard = () => {
             </CardContent>
           </Card>
         )}
+
+        {/* Wallet Connection Status */}
+        <Card className="mb-4 bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-lg text-blue-900">Wallet Status</CardTitle>
+              <div className={`w-3 h-3 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`} />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              <p className="text-sm text-blue-800">
+                <strong>Connected:</strong> {isConnected ? '✅ Yes' : '❌ No'}
+              </p>
+              {account && (
+                <p className="text-sm text-blue-800">
+                  <strong>Address:</strong> {account.slice(0, 6)}...{account.slice(-4)}
+                </p>
+              )}
+              <p className="text-sm text-blue-800">
+                <strong>Network:</strong> {network || 'Unknown'}
+              </p>
+              <p className="text-sm text-blue-800">
+                <strong>Contracts Ready:</strong> {contractsInitialized ? '✅ Yes' : '❌ No'}
+              </p>
+            </div>
+            
+            {!isConnected && (
+              <Button 
+                onClick={() => setShowMetaMaskModal(true)}
+                className="w-full mt-3 bg-blue-600 hover:bg-blue-700"
+              >
+                <Wallet className="h-4 w-4 mr-2" />
+                Connect Wallet
+              </Button>
+            )}
+            
+            {isConnected && !contractsInitialized && (
+              <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <p className="text-sm text-yellow-800">
+                  <strong>⚠️ Smart contracts are initializing...</strong>
+                </p>
+                <p className="text-xs text-yellow-700 mt-1">
+                  This may take a few moments. If it persists, check your network connection.
+                </p>
+                <Button 
+                  onClick={() => window.location.reload()}
+                  variant="outline"
+                  size="sm"
+                  className="mt-2 text-xs"
+                >
+                  Refresh Page
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Web3 Status */}
         {currentNetworkStatus && (

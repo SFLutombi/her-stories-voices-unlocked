@@ -13,14 +13,30 @@ export const AuthCallback = () => {
   useEffect(() => {
     const handleAuthCallback = async () => {
       try {
-        // Check if we have a code parameter (authorization code flow)
+        console.log('AuthCallback: Processing auth callback...');
+        console.log('AuthCallback: Current URL:', window.location.href);
+        console.log('AuthCallback: Pathname:', window.location.pathname);
+        console.log('AuthCallback: Search:', window.location.search);
+        console.log('AuthCallback: Hash:', window.location.hash);
+        
+        // Check if we have an authorization code in the URL
         const urlParams = new URLSearchParams(window.location.search);
         const code = urlParams.get('code');
+        const error = urlParams.get('error');
+        const errorDescription = urlParams.get('error_description');
         
-        console.log('AuthCallback: Processing auth callback with code:', code ? 'present' : 'missing');
+        console.log('AuthCallback: URL parameters:', { code: !!code, error, errorDescription });
+        
+        if (error) {
+          console.error('AuthCallback: Auth error detected:', error, errorDescription);
+          setStatus('error');
+          setMessage(`Authentication error: ${errorDescription || error}`);
+          return;
+        }
         
         if (code) {
-          console.log('AuthCallback: Exchanging authorization code for session...');
+          // We have an authorization code, complete the PKCE flow
+          console.log('AuthCallback: Completing PKCE flow with code...');
           
           try {
             // Exchange the authorization code for a session
@@ -30,46 +46,11 @@ export const AuthCallback = () => {
             
             if (error) {
               console.error('AuthCallback: Exchange error:', error);
-              
-              // If exchange fails, try to get the session directly
-              console.log('AuthCallback: Trying to get session directly...');
-              const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-              
-              if (sessionError) {
-                console.error('AuthCallback: Session check also failed:', sessionError);
-                throw error; // Throw the original error
-              }
-              
-              if (sessionData.session) {
-                console.log('AuthCallback: Session obtained directly');
-                setStatus('success');
-                setMessage('Authentication successful! Redirecting you...');
-                
-                // Clear query params
-                if (window.location.search) {
-                  window.history.replaceState(null, '', window.location.pathname);
-                }
-                
-                // Redirect after a short delay
-                setTimeout(() => {
-                  // Check if user is an author and redirect accordingly
-                  const authorSetup = localStorage.getItem('authorSetup');
-                  if (authorSetup) {
-                    console.log('AuthCallback: Redirecting to profile setup');
-                    navigate('/profile-setup');
-                  } else {
-                    console.log('AuthCallback: Redirecting to discover');
-                    navigate('/discover');
-                  }
-                }, 2000);
-                return;
-              } else {
-                throw error; // Throw the original error if no session
-              }
+              throw error;
             }
             
             if (data.session) {
-              console.log('AuthCallback: Session obtained successfully');
+              console.log('AuthCallback: Session obtained successfully via exchange');
               setStatus('success');
               setMessage('Authentication successful! Redirecting you...');
               
@@ -91,20 +72,17 @@ export const AuthCallback = () => {
                 }
               }, 2000);
             } else {
-              console.error('AuthCallback: No session in exchange response');
-              setStatus('error');
-              setMessage('No active session found. Please try signing up again.');
+              throw new Error('No session in exchange response');
             }
           } catch (exchangeError) {
-            console.error('AuthCallback: Exchange failed, trying fallback...');
+            console.error('AuthCallback: Exchange failed, trying fallback...', exchangeError);
             
-            // Final fallback: try to get session
+            // Fallback: try to get session directly
             const { data: fallbackData, error: fallbackError } = await supabase.auth.getSession();
             
             if (fallbackError || !fallbackData.session) {
-              console.error('AuthCallback: All fallbacks failed');
-              setStatus('error');
-              setMessage('Authentication failed. Please try signing up again.');
+              console.error('AuthCallback: Fallback also failed');
+              throw exchangeError; // Throw the original error
             } else {
               console.log('AuthCallback: Fallback session successful');
               setStatus('success');
@@ -130,10 +108,12 @@ export const AuthCallback = () => {
             }
           }
         } else {
-          console.log('AuthCallback: No code parameter, checking existing session...');
+          // No authorization code, check for existing session
+          console.log('AuthCallback: No code found, checking existing session...');
           
-          // Fallback to checking existing session (for hash fragment flow)
           const { data, error } = await supabase.auth.getSession();
+          
+          console.log('AuthCallback: Session check result:', { data, error });
           
           if (error) {
             console.error('AuthCallback: Session check error:', error);
@@ -145,7 +125,7 @@ export const AuthCallback = () => {
             setStatus('success');
             setMessage('Authentication successful! Redirecting you...');
             
-            // Clear hash fragment
+            // Clear any hash fragments
             if (window.location.hash) {
               window.history.replaceState(null, '', window.location.pathname);
             }
@@ -163,7 +143,7 @@ export const AuthCallback = () => {
               }
             }, 2000);
           } else {
-            console.error('AuthCallback: No existing session found');
+            console.error('AuthCallback: No session found');
             setStatus('error');
             setMessage('No active session found. Please try signing up again.');
           }
@@ -175,7 +155,10 @@ export const AuthCallback = () => {
       }
     };
 
-    handleAuthCallback();
+    // Add a small delay to ensure Supabase has time to process the auth flow
+    const timeoutId = setTimeout(handleAuthCallback, 500);
+    
+    return () => clearTimeout(timeoutId);
   }, [navigate]);
 
   const handleRetry = () => {

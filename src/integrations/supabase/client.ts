@@ -14,23 +14,27 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     persistSession: true,
     autoRefreshToken: true,
     flowType: 'pkce',
-    detectSessionInUrl: true
+    detectSessionInUrl: true, // Re-enable for PKCE flow to work
+    debug: true // Enable debug logging
   }
 });
 
-// Handle auth callback from URL query params (authorization code flow)
+// Log the current auth state for debugging
 if (typeof window !== 'undefined') {
+  console.log('Supabase client initialized with config:', {
+    url: SUPABASE_URL,
+    flowType: 'pkce',
+    detectSessionInUrl: true
+  });
+  
+  // Check if there are any auth-related URL parameters
   const urlParams = new URLSearchParams(window.location.search);
   const code = urlParams.get('code');
+  const error = urlParams.get('error');
+  const errorDescription = urlParams.get('error_description');
   
-  if (code) {
-    console.log('Supabase client: Detected auth code, redirecting to callback');
-    // This is an auth callback with authorization code
-    const currentPath = window.location.pathname;
-    if (currentPath !== '/auth/callback') {
-      // Redirect to auth callback route with the code
-      window.location.href = `/auth/callback?code=${code}`;
-    }
+  if (code || error) {
+    console.log('Supabase client: Auth parameters detected:', { code: !!code, error, errorDescription });
   }
 }
 
