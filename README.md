@@ -1,6 +1,6 @@
 # 📚 HerStories — A Blockchain Marketplace for Women's Voices
 
-"South African women's stories — whether novels, survival stories, or life lessons — are often undervalued or silenced. HerStories lets women publish, share, and monetize their words one chapter at a time."
+South African women's stories — whether novels, survival stories, or life lessons — are often undervalued or silenced. HerStories lets women publish, share, and monetize their words one chapter at a time.
 
 ## 🎬 Demo Video
 
