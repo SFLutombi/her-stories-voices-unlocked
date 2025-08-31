@@ -7,6 +7,7 @@ CREATE TABLE public.profiles (
   is_anonymous BOOLEAN DEFAULT false,
   is_author BOOLEAN DEFAULT false,
   wallet_balance INTEGER DEFAULT 100, -- Starting credits
+  wallet_address TEXT, -- User's blockchain wallet address
   avatar_url TEXT,
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
@@ -23,7 +24,7 @@ CREATE TABLE public.categories (
 -- Create stories table
 CREATE TABLE public.stories (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-  author_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  author_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   title TEXT NOT NULL,
   description TEXT,
   cover_image_url TEXT,
@@ -33,6 +34,7 @@ CREATE TABLE public.stories (
   published BOOLEAN DEFAULT false,
   is_anonymous BOOLEAN DEFAULT false,
   impact_percentage INTEGER DEFAULT 10, -- Percentage going to shelters
+  author_wallet_address TEXT, -- Author's blockchain wallet address
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
@@ -80,33 +82,31 @@ ALTER TABLE public.chapters ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.transactions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.purchases ENABLE ROW LEVEL SECURITY;
 
--- RLS Policies for profiles
-CREATE POLICY "Users can view all profiles" ON public.profiles FOR SELECT USING (true);
-CREATE POLICY "Users can update their own profile" ON public.profiles FOR UPDATE USING (auth.uid() = user_id);
-CREATE POLICY "Users can insert their own profile" ON public.profiles FOR INSERT WITH CHECK (auth.uid() = user_id);
+-- RLS Policies for profiles (permissive for demo)
+CREATE POLICY "demo_profiles_select_all" ON public.profiles FOR SELECT USING (true);
+CREATE POLICY "demo_profiles_update_own" ON public.profiles FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "demo_profiles_insert_own" ON public.profiles FOR INSERT WITH CHECK (auth.uid() = user_id);
 
--- RLS Policies for categories
-CREATE POLICY "Categories are viewable by everyone" ON public.categories FOR SELECT USING (true);
+-- RLS Policies for categories (permissive for demo)
+CREATE POLICY "demo_categories_select_all" ON public.categories FOR SELECT USING (true);
 
--- RLS Policies for stories
-CREATE POLICY "Published stories are viewable by everyone" ON public.stories FOR SELECT USING (published = true);
-CREATE POLICY "Authors can view their own stories" ON public.stories FOR SELECT USING (auth.uid() = author_id);
-CREATE POLICY "Authors can create stories" ON public.stories FOR INSERT WITH CHECK (auth.uid() = author_id);
-CREATE POLICY "Authors can update their own stories" ON public.stories FOR UPDATE USING (auth.uid() = author_id);
+-- RLS Policies for stories (permissive for demo)
+CREATE POLICY "demo_stories_select_all" ON public.stories FOR SELECT USING (true);
+CREATE POLICY "demo_stories_insert_own" ON public.stories FOR INSERT WITH CHECK (auth.uid() = author_id);
+CREATE POLICY "demo_stories_update_own" ON public.stories FOR UPDATE USING (auth.uid() = author_id);
 
--- RLS Policies for chapters
-CREATE POLICY "Published chapters are viewable by everyone" ON public.chapters FOR SELECT USING (published = true);
-CREATE POLICY "Authors can view their own chapters" ON public.chapters FOR SELECT USING (auth.uid() = (SELECT author_id FROM public.stories WHERE id = story_id));
-CREATE POLICY "Authors can create chapters" ON public.chapters FOR INSERT WITH CHECK (auth.uid() = (SELECT author_id FROM public.stories WHERE id = story_id));
-CREATE POLICY "Authors can update their own chapters" ON public.chapters FOR UPDATE USING (auth.uid() = (SELECT author_id FROM public.stories WHERE id = story_id));
+-- RLS Policies for chapters (permissive for demo)
+CREATE POLICY "demo_chapters_select_all" ON public.chapters FOR SELECT USING (true);
+CREATE POLICY "demo_chapters_insert_own" ON public.chapters FOR INSERT WITH CHECK (auth.uid() = (SELECT author_id FROM public.stories WHERE id = story_id));
+CREATE POLICY "demo_chapters_update_own" ON public.chapters FOR UPDATE USING (auth.uid() = (SELECT author_id FROM public.stories WHERE id = story_id));
 
--- RLS Policies for transactions
-CREATE POLICY "Users can view their own transactions" ON public.transactions FOR SELECT USING (auth.uid() = buyer_id);
-CREATE POLICY "Users can create transactions" ON public.transactions FOR INSERT WITH CHECK (auth.uid() = buyer_id);
+-- RLS Policies for transactions (permissive for demo)
+CREATE POLICY "demo_transactions_select_all" ON public.transactions FOR SELECT USING (true);
+CREATE POLICY "demo_transactions_insert_own" ON public.transactions FOR INSERT WITH CHECK (auth.uid() = buyer_id);
 
--- RLS Policies for purchases
-CREATE POLICY "Users can view their own purchases" ON public.purchases FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Users can create purchases" ON public.purchases FOR INSERT WITH CHECK (auth.uid() = user_id);
+-- RLS Policies for purchases (permissive for demo)
+CREATE POLICY "demo_purchases_select_all" ON public.purchases FOR SELECT USING (true);
+CREATE POLICY "demo_purchases_insert_own" ON public.purchases FOR INSERT WITH CHECK (auth.uid() = user_id);
 
 -- Insert default categories
 INSERT INTO public.categories (name, description) VALUES
