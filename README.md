@@ -57,20 +57,20 @@ This isn't just scaling within South Africa — it's a continent-wide storytelli
 ## 🏆 How We Meet Judging Criteria
 
 ### **Impact on SA Women**
-- **Emotional**: Every chapter sold means a woman's voice is heard and valued
-- **Practical**: Direct, affordable payments → real income for women in townships, rural areas, or without access to publishers
+- Every chapter sold means a woman's voice is heard and valued
+- Direct, affordable payments → real income for women in townships, rural areas, or without access to publishers
 
 ### **Technical Skill & Scalability**
-- **Emotional**: Readers and authors see transactions happen live — building trust in a system that can't be gamed
-- **Practical**: Blockchain handles thousands of transactions per second, enabling chapter-level payments at national scale
+- Readers and authors see transactions happen live — building trust in a system that can't be gamed
+- Blockchain handles thousands of transactions per second, enabling chapter-level payments at national scale
 
 ### **Clear Blockchain Use Case**
-- **Emotional**: A story's value is preserved and fairly rewarded
-- **Practical**: Smart contracts enforce royalties → zero chance of exploitation. Payments are verifiable and tamper-proof
+- A story's value is preserved and fairly rewarded
+- Smart contracts enforce royalties → zero chance of exploitation. Payments are verifiable and tamper-proof
 
 ### **Creative Use of Blockchain Tools**
-- **Emotional**: Transparency means readers know their money is empowering women, not enriching a platform
-- **Practical**: MetaMask + blockchain explorer power instant payouts and visible proof of support
+- Transparency means readers know their money is empowering women, not enriching a platform
+- MetaMask + blockchain explorer power instant payouts and visible proof of support
 
 ## 🖼️ System Overview
 
@@ -155,6 +155,47 @@ VITE_IPFS_GATEWAY=https://ipfs.io/ipfs/
 - `POST /api/buy` → Execute smart contract purchase
 - `GET /api/chapters/:id` → Fetch chapter details
 - `GET /api/author/:wallet` → View author's works
+
+### 🤝 Contributing Guide
+
+#### **Getting Started**
+```bash
+git clone https://github.com/your-username/her-stories-voices-unlocked.git
+cd her-stories-voices-unlocked
+npm install
+cp .env.example .env.local
+npm run dev
+```
+
+#### **Common Contributions**
+
+**Testing Smart Contracts** - Run tests in `contracts/` directory:
+```bash
+cd contracts
+npx hardhat test
+# Or test specific file
+npx hardhat test test/YourContract.test.js
+```
+
+**Adding Smart Contracts** - Create in `contracts/` directory:
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+contract NewContract {
+    // Your logic here
+}
+```
+
+#### **Submitting Changes**
+```bash
+git checkout -b feature/your-feature
+git add . && git commit -m "feat: description"
+git push origin feature/your-feature
+# Create Pull Request
+```
+
+**Guidelines**: Use TypeScript, Tailwind CSS, Shadcn/ui components, and conventional commits.
 
 ## 🌍 How You Can Help
 
