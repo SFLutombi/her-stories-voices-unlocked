@@ -1,4 +1,4 @@
-# 📚 HerStories — A Blockchain Marketplace for Women's Voices
+# 📚 HerStories: A Blockchain Marketplace for Women's Voices
 
 South African women's stories, whether novels, survival stories, or life lessons, are often undervalued or silenced. HerStories lets women publish, share, and monetize their words one chapter at a time.
 
@@ -17,26 +17,36 @@ South African women's stories, whether novels, survival stories, or life lessons
 ## 🏆 How We Meet Judging Criteria
 
 ### **Impact on SA Women**
-- Every chapter sold means a woman's voice is heard and valued
-- Direct, affordable payments → real income for women in townships, rural areas, or without access to publishers
+
+From a township to a city, women's stories reach readers who value them and their earnings go straight into their hands.
+
+Survivors and emerging authors can share their voices safely, turning lived experience into tangible support.
 
 ### **Technical Skill & Scalability**
-- Readers and authors see transactions happen live — building trust in a system that can't be gamed
-- Blockchain handles thousands of transactions per second, enabling chapter-level payments at national scale
+- Built a fully functional demo with MetaMask integration, deployed smart contracts, and user account management
+- Implemented chapter creation, management, and payment facilitation to transfer funds between MetaMask wallets
+- Created a complete blockchain-based storytelling platform with real-time transaction verification
 
 ### **Clear Blockchain Use Case**
-- A story's value is preserved and fairly rewarded
-- Smart contracts enforce royalties → zero chance of exploitation. Payments are verifiable and tamper-proof
+- Blockchain's immutable ledger ensures story ownership and royalty distribution are permanently recorded
+- Smart contracts automatically enforce payment terms and eliminate the need for trust in traditional publishing intermediaries
+- Decentralized payments enable direct author-reader transactions without platform fees or delays
 
 ### **Creative Use of Blockchain Tools**
-- Transparency means readers know their money is empowering women, not enriching a platform
-- MetaMask + blockchain explorer power instant payouts and visible proof of support
+
+**Stories as assets**: We treat each chapter as a verifiable, monetizable digital asset. Blockchain allows the story itself, not just money, to carry real value.
+
+**Micro-empowerment at scale**: Tiny, instant payments let readers support individual chapters, something traditional blockchains make impossible due to high fees. Each contribution becomes meaningful in real-time.
+
+**Visible impact in action**: Tools like wallets and explorers, usually used for financial tracking, become proof that support is reaching the author, making empowerment tangible and immediate.
+
+**Trust engine for creativity**: By reframing blockchain as a trust engine for creativity and lived experience, we transform it from a financial ledger into a social platform for women's voices.
 
 ## ⚡ Why Blockchain Makes This Possible
 
 HerStories is only viable because blockchain technology removes the exact barriers that killed similar attempts with traditional payment systems.
 
-**Tiny, fast payments** - Traditional payment systems fail at small payments (fees > content cost). With blockchain, a 5c chapter purchase actually works.
+**Tiny, fast payments** - Traditional payment systems fail at small payments (fees > content cost). With blockchain, a 1R chapter purchase actually works.
 
 **Low fees & instant settlement** - Payments arrive in real-time, giving authors confidence that their words are valued immediately.
 
@@ -48,19 +58,23 @@ HerStories is only viable because blockchain technology removes the exact barrie
 
 ## 🚀 Growth Potential
 
-The world has seen platforms like Wattpad, Medium, or even Patreon give writers exposure — but all are limited by platform cuts, borders, and high transaction costs.
+Existing platforms like Wattpad, Medium, or Patreon give writers exposure — but all face practical limitations:
 
-- **Wattpad** - writers get readers, but little or no income
-- **Medium** - tied to subscriptions, mostly US/Europe focused
-- **Patreon** - payments blocked in many African countries, high fees cut creators' earnings
+**Wattpad** – creators get readers but almost no income.
 
-👉 **HerStories, powered by blockchain, breaks these borders:**
+**Medium** – subscription-focused, mostly for US/Europe audiences.
 
-- **Cross-border micro-payments** - a reader in Lagos or Nairobi can support a writer in Johannesburg instantly
-- **Zero middlemen** - 100% of the chapter price goes to the woman who wrote it
-- **Ultra-low fees** - even a 3c chapter purchase makes sense economically
+**Patreon** – blocked in many countries, with high fees cutting into creators' earnings.
 
-This isn't just scaling within South Africa — it's a continent-wide storytelling economy waiting to emerge.
+👉 **HerStories, powered by blockchain, overcomes these barriers:**
+
+**Cross-border micro-payments** – readers in Lagos, Nairobi, Cape Town, or anywhere in the world can instantly support voices that are too often overlooked.
+
+**Transparent platform fees** – a small, fair fee sustains the platform while maximizing earnings for the people telling these stories.
+
+**Ultra-low transaction costs** – micro-chapters (a few cents each) make storytelling from every community accessible and financially viable.
+
+This isn't just scaling within South Africa — it's a continent-wide and global storytelling economy, where overlooked voices are empowered, readers can participate affordably, and the platform grows sustainably across borders.
 
 ## 🔄 System Overview
 
