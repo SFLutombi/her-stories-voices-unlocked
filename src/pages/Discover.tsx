@@ -27,12 +27,20 @@ interface Story {
   };
   published: boolean;
   created_at: string;
+  author_id?: string;
   author?: {
     id: string;
     display_name: string;
     is_anonymous: boolean;
     pseudonym?: string;
   };
+  chapters?: {
+    id: string;
+    chapter_number: number;
+    title: string;
+    is_free: boolean;
+    published: boolean;
+  }[];
 }
 
 const Discover = () => {
@@ -68,7 +76,8 @@ const Discover = () => {
         .from('stories')
         .select(`
           *,
-          category:categories(name)
+          category:categories(name),
+          chapters(id, chapter_number, title, is_free, published)
         `)
         .eq('published', true);
 
@@ -90,6 +99,12 @@ const Discover = () => {
 
       // Filter and sort stories
       let filteredStories = storiesData || [];
+
+      // Ensure total_chapters is calculated from actual chapters if not set
+      filteredStories = filteredStories.map(story => ({
+        ...story,
+        total_chapters: story.total_chapters || (story.chapters ? story.chapters.length : 0)
+      }));
 
       // Apply search filter
       if (searchQuery) {
@@ -116,7 +131,7 @@ const Discover = () => {
       }
 
       console.log('Filtered and sorted stories:', filteredStories);
-      setStories(filteredStories);
+      setStories(filteredStories as Story[]);
     } catch (error) {
       console.error('Error fetching stories:', error);
       // Fallback to database-only fetch if blockchain fails
@@ -133,7 +148,6 @@ const Discover = () => {
         .from('stories')
         .select(`
           *,
-          author:profiles!author_id(display_name, is_anonymous),
           category:categories(name),
           chapters(id, chapter_number, title, is_free, published)
         `)
@@ -155,10 +169,12 @@ const Discover = () => {
       const validStories = data?.map(story => ({
         ...story,
         // Ensure chapters array exists even if empty
-        chapters: story.chapters || []
+        chapters: story.chapters || [],
+        // Ensure total_chapters is calculated from actual chapters if not set
+        total_chapters: story.total_chapters || (story.chapters ? story.chapters.length : 0)
       })) || [];
       
-      setStories(validStories);
+      setStories(validStories as Story[]);
     } catch (error) {
       console.error('Error fetching stories from database:', error);
       setStories([]);
@@ -293,16 +309,14 @@ const Discover = () => {
                     key={story.id}
                     id={story.id}
                     title={story.title}
-                    author={story.author?.is_anonymous && story.author?.pseudonym 
-                      ? story.author.pseudonym 
-                      : story.author?.display_name || 'Unknown Author'}
-                    authorId={story.author?.id}
+                    author={story.author_id ? `Author ${story.author_id.slice(0, 8)}...` : 'Unknown Author'}
+                    authorId={story.author_id}
                     description={story.description}
                     coverImage={story.cover_image_url || '/placeholder.svg'}
                     pricePerChapter={story.price_per_chapter}
                     totalChapters={story.total_chapters}
                     category={story.category?.name || 'Uncategorized'}
-                    isAnonymous={story.author?.is_anonymous || false}
+                    isAnonymous={false}
                     impact={story.impact_percentage > 0 ? `${story.impact_percentage}% to shelters` : undefined}
                     blockchainInfo={story.blockchain_id ? {
                       id: story.blockchain_id,
@@ -355,16 +369,14 @@ const Discover = () => {
                     key={story.id}
                     id={story.id}
                     title={story.title}
-                    author={story.author?.is_anonymous && story.author?.pseudonym 
-                      ? story.author.pseudonym 
-                      : story.author?.display_name || 'Unknown Author'}
-                    authorId={story.author?.id}
+                    author={story.author_id ? `Author ${story.author_id.slice(0, 8)}...` : 'Unknown Author'}
+                    authorId={story.author_id}
                     description={story.description}
                     coverImage={story.cover_image_url || '/placeholder.svg'}
                     pricePerChapter={story.price_per_chapter}
                     totalChapters={story.total_chapters}
                     category={story.category?.name || 'Uncategorized'}
-                    isAnonymous={story.author?.is_anonymous || false}
+                    isAnonymous={false}
                     impact={story.impact_percentage > 0 ? `${story.impact_percentage}% to shelters` : undefined}
                     blockchainInfo={story.blockchain_id ? {
                       id: story.blockchain_id,

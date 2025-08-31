@@ -8,10 +8,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
-import { useWallet } from '@/hooks/useWallet';
 import { useToast } from '@/hooks/use-toast';
-import { MetaMaskModal } from '@/components/MetaMaskModal';
-import { Heart, BookOpen, Users, Wallet, Shield, Eye, PenTool, CheckCircle } from 'lucide-react';
+import { Heart, BookOpen, Coins, Shield, Users, PenTool } from 'lucide-react';
 import { useEffect } from 'react';
 
 const Auth = () => {
@@ -22,14 +20,10 @@ const Auth = () => {
   const [isAuthor, setIsAuthor] = useState(false);
   const [anonymousMode, setAnonymousMode] = useState(false);
   const [anonymousName, setAnonymousName] = useState('');
-  const [showWalletModal, setShowWalletModal] = useState(false);
+  // Wallet modal removed - no longer needed during signup
   
   const { signUp, signIn, user } = useAuth();
-  const { 
-    isConnected, 
-    account, 
-    isMetaMaskInstalled 
-  } = useWallet();
+  // Removed MetaMask requirement during signup
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -43,26 +37,15 @@ const Auth = () => {
     }
   }, [user, isAuthor, navigate]);
 
-  // Monitor wallet connection changes
-  useEffect(() => {
-    console.log('Wallet connection state changed:', { isConnected, account });
-  }, [isConnected, account]);
+  // Wallet connection is now handled on the dashboard
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      // For authors, require wallet connection
-      if (isAuthor && !isConnected) {
-        toast({
-          variant: "destructive",
-          title: "Wallet Required",
-          description: "To publish stories and earn from readers, you need to connect your MetaMask wallet first.",
-        });
-        setLoading(false);
-        return;
-      }
+      // MetaMask connection is no longer required during signup
+      // Users can connect their wallet later on the dashboard
 
       const { error, data } = await signUp(email, password, displayName);
       if (error) {
@@ -108,11 +91,11 @@ const Auth = () => {
           isAuthor: true,
           anonymousMode,
           anonymousName,
-          walletAddress: account,
+          walletAddress: null, // Will be set when user connects wallet on dashboard
           walletData: {
-            account: account,
-            chainId: null, // Will be populated during profile setup
-            connectedAt: new Date().toISOString()
+            account: null,
+            chainId: null,
+            connectedAt: null
           }
         };
         localStorage.setItem('authorSetup', JSON.stringify(authorSetupData));
@@ -193,56 +176,23 @@ const Auth = () => {
     }
   };
 
-  const handleWalletSuccess = (connectedAccount: string) => {
-    toast({
-      title: "Wallet Connected!",
-      description: `MetaMask connected successfully. You can now complete your author registration.`,
-    });
-    
-    // Close the modal - the wallet state should update automatically
-    setShowWalletModal(false);
-  };
-
+  // Wallet connection is now handled on the dashboard
   const handleAuthorToggle = (checked: boolean) => {
     setIsAuthor(checked);
-    if (checked && !isMetaMaskInstalled()) {
-      toast({
-        title: "MetaMask Required",
-        description: "To publish stories and earn from readers, you need to install the MetaMask browser extension first.",
-        variant: "destructive",
-      });
-    }
+    // No MetaMask requirement during signup
   };
 
   // Check if form is valid for submission
   const isFormValid = () => {
     const basicFieldsValid = email && password && displayName;
     
-    if (!isAuthor) {
-      return basicFieldsValid;
-    }
-    
-    // For authors, also need wallet connection
-    const authorValid = basicFieldsValid && isConnected;
-    
-    // Debug logging
-    console.log('Form validation:', {
-      email: !!email,
-      password: !!password,
-      displayName: !!displayName,
-      isAuthor,
-      isConnected,
-      basicFieldsValid,
-      authorValid
-    });
-    
-    return authorValid;
+    // No wallet requirement during signup
+    return basicFieldsValid;
   };
 
   // Get button text based on form state
   const getButtonText = () => {
     if (loading) return 'Creating Account...';
-    if (isAuthor && !isConnected) return 'Connect Wallet First';
     return 'Create Account';
   };
 
@@ -354,7 +304,7 @@ const Auth = () => {
                       <Switch
                         id="author-mode"
                         checked={isAuthor}
-                        onCheckedChange={handleAuthorToggle}
+                        onCheckedChange={setIsAuthor}
                       />
                       <Label htmlFor="author-mode" className="font-medium">
                         I want to publish stories and earn from readers
@@ -363,55 +313,11 @@ const Auth = () => {
                     
                     {isAuthor && (
                       <div className="space-y-3 p-3 bg-muted/50 rounded-lg">
-                        {/* Success indicator when wallet is connected */}
-                        {isConnected && (
-                          <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-3">
-                            <div className="flex items-center space-x-2">
-                              <CheckCircle className="h-4 w-4 text-green-600" />
-                              <span className="text-sm font-medium text-green-800">
-                                MetaMask wallet connected successfully!
-                              </span>
-                            </div>
-                          </div>
-                        )}
-                        
                         <div className="flex items-center space-x-2 text-sm text-muted-foreground">
                           <PenTool className="h-4 w-4" />
-                          <span>Author features will be unlocked after signup</span>
+                          <span>Author features will be unlocked after signup. You can connect your MetaMask wallet later on the dashboard.</span>
                         </div>
                         
-                        {/* Wallet Connection for Authors */}
-                        <div className="space-y-2">
-                          <Label className="text-sm font-medium">MetaMask Wallet</Label>
-                          {!isMetaMaskInstalled() ? (
-                            <div className="text-sm text-destructive">
-                              MetaMask is not installed. Please install MetaMask to continue as an author.
-                            </div>
-                          ) : !isConnected ? (
-                            <Button
-                              type="button"
-                              variant="outline"
-                              onClick={() => setShowWalletModal(true)}
-                              className="w-full"
-                            >
-                              <Wallet className="h-4 w-4 mr-2" />
-                              Connect MetaMask
-                            </Button>
-                          ) : (
-                            <div className="flex items-center justify-between p-2 bg-green-50 border border-green-200 rounded">
-                              <div className="flex items-center space-x-2">
-                                <Wallet className="h-4 w-4 text-green-600" />
-                                <span className="text-sm font-mono text-green-800">
-                                  {account?.slice(0, 6)}...{account?.slice(-4)}
-                                </span>
-                              </div>
-                              <Badge variant="secondary" className="bg-green-100 text-green-800 border-green-200">
-                                Connected
-                              </Badge>
-                            </div>
-                          )}
-                        </div>
-
                         {/* Anonymous Mode for Authors */}
                         <div className="space-y-2">
                           <div className="flex items-center space-x-2">
@@ -458,7 +364,7 @@ const Auth = () => {
                         {!email && <div>• Email address</div>}
                         {!password && <div>• Password</div>}
                         {!displayName && <div>• Display name</div>}
-                        {isAuthor && !isConnected && <div>• MetaMask wallet connection</div>}
+                        {/* MetaMask connection is now handled on the dashboard */}
                       </div>
                     </div>
                   )}
@@ -484,12 +390,7 @@ const Auth = () => {
         </div>
       </div>
 
-      {/* MetaMask Connection Modal */}
-      <MetaMaskModal
-        isOpen={showWalletModal}
-        onOpenChange={setShowWalletModal}
-        onSuccess={handleWalletSuccess}
-      />
+      {/* MetaMask connection is now handled on the dashboard */}
     </div>
   );
 };

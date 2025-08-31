@@ -3,12 +3,12 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { BookOpen, Coins, Lock, Unlock, Heart, Eye, EyeOff, Wallet } from 'lucide-react';
+import { BookOpen, Coins, Lock, Unlock, Heart, Eye, EyeOff, Gift, Wallet } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWeb3 } from '@/contexts/Web3Context';
 import { useToast } from '@/hooks/use-toast';
-import { purchaseChapterWithCredits } from '@/integrations/web3/contracts';
+import { purchaseChapterWithBDAG } from '@/integrations/web3/contracts';
 
 interface Chapter {
   id: string;
@@ -43,7 +43,7 @@ const ChapterReader = ({ storyId, onPurchaseComplete }: ChapterReaderProps) => {
   
   const { user } = useAuth();
   const { toast } = useToast();
-  const { isConnected, contractsInitialized, account, connect } = useWeb3();
+  const { isConnected, contractsInitialized, account } = useWeb3();
 
   useEffect(() => {
     fetchChapters();
@@ -160,55 +160,13 @@ const ChapterReader = ({ storyId, onPurchaseComplete }: ChapterReaderProps) => {
       return;
     }
 
-    // Check if user is trying to buy their own chapter
-    if (user.id === story.author_id) {
-      toast({
-        variant: "destructive",
-        title: "Cannot Purchase Own Chapter",
-        description: "You cannot purchase chapters from your own story. This is not allowed by the smart contract.",
-      });
-      return;
-    }
-
-    // If wallet not connected, try to connect first
-    if (!isConnected) {
-      try {
-        const connected = await connect();
-        if (!connected) {
-          toast({
-            variant: "destructive",
-            title: "Wallet Connection Failed",
-            description: "Please connect your MetaMask wallet to purchase chapters",
-          });
-          return;
-        }
-      } catch (error) {
-        toast({
-          variant: "destructive",
-          title: "Wallet Connection Failed",
-          description: "Failed to connect MetaMask. Please try again.",
-        });
-        return;
-      }
-    }
-
-    // Now proceed with the purchase
+    // Always use MetaMask for blockchain purchases
     await purchaseWithMetaMask(chapter);
   };
 
 
 
   const purchaseWithMetaMask = async (chapter: Chapter) => {
-    // Check if user is trying to buy their own chapter
-    if (user?.id === story?.author_id) {
-      toast({
-        variant: "destructive",
-        title: "Cannot Purchase Own Chapter",
-        description: "You cannot purchase chapters from your own story. This is not allowed by the smart contract.",
-      });
-      return;
-    }
-
     if (!isConnected) {
       toast({
         title: "MetaMask Required",
@@ -235,7 +193,7 @@ const ChapterReader = ({ storyId, onPurchaseComplete }: ChapterReaderProps) => {
       // Get author's profile to find their wallet address
       const { data: authorProfile, error: profileError } = await supabase
         .from('profiles')
-        .select('wallet_address')
+        .select('wallet_address, display_name')
         .eq('user_id', story.author_id)
         .single();
 
@@ -243,13 +201,32 @@ const ChapterReader = ({ storyId, onPurchaseComplete }: ChapterReaderProps) => {
         throw new Error('Author wallet address not found. Please ask the author to set their wallet address.');
       }
 
+      // Debug: Log author information
+      console.log('Author Profile:', {
+        userId: story.author_id,
+        displayName: authorProfile.display_name,
+        walletAddress: authorProfile.wallet_address
+      });
+
+      // Check if author has a blockchain profile
+      try {
+        // This will help us see if the author exists on the blockchain
+        const authorAddress = authorProfile.wallet_address;
+        console.log('Checking blockchain status for author:', authorAddress);
+        
+        // You can add blockchain checks here if needed
+        // For now, let's just log the information
+      } catch (blockchainError) {
+        console.warn('Could not check blockchain status:', blockchainError);
+      }
+
       // Convert story ID to number for blockchain (simplified - just use a hash)
       const storyIdNumber = parseInt(storyId.replace(/-/g, '').substring(0, 8), 16);
       const chapterIdNumber = parseInt(chapter.id.replace(/-/g, '').substring(0, 8), 16);
       
-      // Use the integration contract's purchaseStoryWithCredits function
-      // This doesn't require the story/chapter to exist on-chain
-      const receipt = await purchaseChapterWithCredits(
+      // Use the new simple BDAG transfer contract
+      // This bypasses complex validation and just transfers BDAG tokens directly
+      const receipt = await purchaseChapterWithBDAG(
         storyIdNumber,
         chapterIdNumber,
         authorProfile.wallet_address,
@@ -274,7 +251,7 @@ const ChapterReader = ({ storyId, onPurchaseComplete }: ChapterReaderProps) => {
       setUserPurchases(prev => new Set([...prev, chapter.id]));
 
       toast({
-        title: "Chapter Purchased on Blockchain! 🚀",
+        title: "Chapter Purchased with BDAG! 🚀",
         description: `Transaction: ${receipt.transactionHash.substring(0, 10)}...`,
       });
 
@@ -287,12 +264,14 @@ const ChapterReader = ({ storyId, onPurchaseComplete }: ChapterReaderProps) => {
       
       if (error.message?.includes('Author wallet address not found')) {
         errorMessage = "Author hasn't set their wallet address yet. Please contact the author.";
-      } else if (error.message?.includes('Insufficient credits')) {
-        errorMessage = "You don't have enough credits in your wallet. Please purchase more credits first.";
+      } else if (error.message?.includes('Insufficient funds')) {
+        errorMessage = "You don't have enough BDAG tokens in your wallet. Please add more tokens to your MetaMask wallet.";
       } else if (error.message?.includes('transaction failed')) {
         errorMessage = "Blockchain transaction failed. This might be due to insufficient funds or network issues.";
       } else if (error.message?.includes('Cannot purchase from yourself')) {
         errorMessage = "You cannot purchase chapters from your own story. This is not allowed.";
+      } else if (error.message?.includes('Author is not active')) {
+        errorMessage = "The author's profile is not active on the blockchain. This usually means they need to complete their blockchain profile setup.";
       }
       
       toast({
@@ -398,7 +377,7 @@ const ChapterReader = ({ storyId, onPurchaseComplete }: ChapterReaderProps) => {
                         ) : (
                           <>
                             <Coins className="w-4 h-4 mr-2" />
-                            {isConnected ? "Buy with MetaMask" : "Connect & Buy"}
+                            Buy with MetaMask
                           </>
                         )}
                      </Button>
@@ -504,20 +483,6 @@ const ChapterReader = ({ storyId, onPurchaseComplete }: ChapterReaderProps) => {
                      </Button>
                    </div>
                  )}
-               </div>
-             </div>
-           </CardContent>
-         </Card>
-       )}
-
-       {user && user.id === story?.author_id && (
-         <Card className="bg-yellow-50 border-yellow-200">
-           <CardContent className="p-4">
-             <div className="flex items-start">
-               <Lock className="h-5 w-5 text-yellow-600 mr-2 mt-0.5" />
-               <div className="text-sm text-yellow-800">
-                 <p className="font-medium mb-1">Author Notice</p>
-                 <p>You cannot purchase chapters from your own story. This is a smart contract restriction to prevent self-purchases.</p>
                </div>
              </div>
            </CardContent>

@@ -133,9 +133,22 @@ CREATE TRIGGER update_chapters_updated_at BEFORE UPDATE ON public.chapters FOR E
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
-  INSERT INTO public.profiles (user_id, display_name)
-  VALUES (NEW.id, NEW.raw_user_meta_data ->> 'display_name');
-  RETURN NEW;
+  -- Check if display_name exists in metadata, otherwise use email
+  DECLARE
+    display_name TEXT;
+  BEGIN
+    display_name := COALESCE(NEW.raw_user_meta_data ->> 'display_name', split_part(NEW.email, '@', 1));
+    
+    INSERT INTO public.profiles (user_id, display_name)
+    VALUES (NEW.id, display_name);
+    
+    RETURN NEW;
+  EXCEPTION
+    WHEN OTHERS THEN
+      -- Log the error but don't fail the user creation
+      RAISE WARNING 'Failed to create profile for user %: %', NEW.id, SQLERRM;
+      RETURN NEW;
+  END;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 

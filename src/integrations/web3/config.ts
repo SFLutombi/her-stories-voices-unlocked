@@ -11,6 +11,7 @@ export const WEB3_CONFIG = {
       currencySymbol: 'BDAG',
       faucet: 'https://primordial.bdagscan.com/faucet',
       contracts: {
+        simpleBDAGTransfer: '0x643859f45cC468e26d98917b086a7B50436f51db',
         integration: '0x0fFb51c20FecB3914411f9774ECe1CF1aEB53670',
         credits: '0x4CC3aaE1db9BE1e0c62917c3E85FcdDf5505Ec8E',
         payment: '0xDD1dA7a122dF2FB7429B6fac873D487c3deED7A7',
@@ -24,6 +25,7 @@ export const WEB3_CONFIG = {
       rpcUrl: 'https://mainnet.infura.io/v3/YOUR_INFURA_KEY', // Replace with your RPC URL
       blockExplorer: 'https://etherscan.io',
       contracts: {
+        simpleBDAGTransfer: '0x643859f45cC468e26d98917b086a7B50436f51db',
         integration: '0x0fFb51c20FecB3914411f9774ECe1CF1aEB53670',
         credits: '0x4CC3aaE1db9BE1e0c62917c3E85FcdDf5505Ec8E',
         payment: '0xDD1dA7a122dF2FB7429B6fac873D487c3deED7A7',

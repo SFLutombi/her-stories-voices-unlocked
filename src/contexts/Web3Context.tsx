@@ -4,10 +4,11 @@ import {
   initializeWeb3, 
   getCurrentAccount, 
   switchNetwork,
-  getCreditBalance,
-  getContractStatus,
-  getContractAddresses,
-  addAndSwitchToPrimordialTestnet
+  getContractBalance,
+  getAuthorBlockchainInfo,
+  updateContractAddress,
+  isMetaMaskAvailable,
+  isMetaMaskConnected
 } from '@/integrations/web3/contracts';
 import { WEB3_CONFIG, getCurrentNetwork } from '@/integrations/web3/config';
 
@@ -22,18 +23,16 @@ interface Web3ContextType {
   // Contract state
   contractsInitialized: boolean;
   contractAddresses: {
-    integration: string;
-    credits: string;
-    payment: string;
-    story: string;
+    simpleBDAGTransfer: string;
   } | null;
   
   // Functions
   connect: () => Promise<boolean>;
   disconnect: () => void;
   switchNetwork: (networkName: 'mainnet' | 'testnet') => Promise<boolean>;
-  addAndSwitchToPrimordialTestnet: () => Promise<boolean>;
   getCreditBalance: (address: string) => Promise<number>;
+  isMetaMaskAvailable: () => boolean;
+  markProfileComplete: () => void;
   
   // Error handling
   error: string | null;
@@ -57,15 +56,13 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
   const [network, setNetwork] = useState<string | null>(null);
   const [contractsInitialized, setContractsInitialized] = useState(false);
   const [contractAddresses, setContractAddresses] = useState<{
-    integration: string;
-    credits: string;
-    payment: string;
-    story: string;
+    simpleBDAGTransfer: string;
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isWeb3Initialized, setIsWeb3Initialized] = useState(false);
+  const [contractsChecked, setContractsChecked] = useState(false);
 
-  // Initialize Web3 connection
+  // Initialize Web3 connection - SIMPLE VERSION
   const connect = async (): Promise<boolean> => {
     try {
       // Prevent duplicate initialization
@@ -74,37 +71,79 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
         return true;
       }
       
+      // Check if MetaMask is available
+      if (!isMetaMaskAvailable()) {
+        setError('MetaMask is not installed. Please install MetaMask to use blockchain features.');
+        return false;
+      }
+      
       setIsInitializing(true);
       setError(null);
       
-      const success = await initializeWeb3();
+      console.log('Web3Context: Starting Web3 initialization...');
+      
+      const success = await initializeWeb3(window.ethereum);
+      console.log('Web3Context: initializeWeb3 result:', success);
+      
       if (success) {
+        console.log('Web3Context: Web3 initialized successfully, setting up state...');
+        
         setIsWeb3Initialized(true);
-        const currentAccount = await getCurrentAccount();
-        const currentNetwork = getCurrentNetwork();
         
-        setAccount(currentAccount);
-        setNetwork(currentNetwork.name);
-        setIsConnected(true);
-        
-        // Save connection state to localStorage
-        if (currentAccount) {
-          localStorage.setItem('web3_connected', 'true');
-          localStorage.setItem('web3_account', currentAccount);
-          localStorage.setItem('web3_network', currentNetwork.name);
-          console.log('Web3Context: Connection state saved to localStorage');
+        // Get account and network directly from the provider/signer that was just created
+        try {
+          const { getProvider, getSigner } = await import('@/integrations/web3/contracts');
+          const provider = getProvider();
+          const signer = getSigner();
+          
+          if (provider && signer) {
+            const currentAccount = await signer.getAddress();
+            const currentNetwork = await provider.getNetwork();
+            
+            console.log('Web3Context: Got account and network directly:', { currentAccount, currentNetwork });
+            
+            setAccount(currentAccount);
+            setNetwork(currentNetwork.name);
+            setIsConnected(true);
+            
+            // Save connection state to localStorage
+            if (currentAccount) {
+              localStorage.setItem('web3_connected', 'true');
+              localStorage.setItem('web3_account', currentAccount);
+              localStorage.setItem('web3_network', currentNetwork.name);
+              console.log('Web3Context: Connection state saved to localStorage');
+            }
+            
+            // Check contract status - only call this once
+            console.log('Web3Context: Checking contract status...');
+            await checkContractStatus(currentAccount);
+            
+            // Wait a bit for state to update, then log the actual current state
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            console.log('Web3Context: Connection complete, actual state:', {
+              isWeb3Initialized: true,
+              isConnected: true,
+              account: currentAccount,
+              network: currentNetwork.name,
+              contractsInitialized: contractsInitialized // Use the actual state value
+            });
+            
+            return true;
+          } else {
+            throw new Error('Provider or signer not available after initialization');
+          }
+        } catch (error) {
+          console.error('Web3Context: Error getting account/network:', error);
+          throw error;
         }
-        
-        // Check contract status
-        await checkContractStatus();
-        
-        return true;
       } else {
         setError('Failed to initialize Web3');
         return false;
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+      console.error('Web3Context: Connection error:', err);
       setError(errorMessage);
       return false;
     } finally {
@@ -112,78 +151,310 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Disconnect Web3
+  // Check contract status
+  const checkContractStatus = async (currentAccount?: string) => {
+    try {
+      console.log('Web3Context: Checking contract status...', {
+        isWeb3Initialized,
+        account: currentAccount || account,
+        contractsChecked
+      });
+      
+      // Use the passed account or fall back to state
+      const accountToCheck = currentAccount || account;
+      
+      // Check if we have a provider and signer
+      if (!isWeb3Initialized || !accountToCheck) {
+        console.log('Web3Context: Web3 not fully initialized or no account, skipping contract check', {
+          isWeb3Initialized,
+          accountToCheck
+        });
+        return;
+      }
+      
+      // Only check contracts once
+      if (contractsChecked) {
+        console.log('Web3Context: Contracts already checked, skipping');
+        return;
+      }
+      
+      // Set contractsChecked to true immediately to prevent duplicate calls
+      setContractsChecked(true);
+      
+      // Check if we're on the correct network
+      const currentNetwork = getCurrentNetwork();
+      console.log('Web3Context: Expected network:', currentNetwork);
+      
+      // Validate that we're on the correct network
+      try {
+        const { getProvider } = await import('@/integrations/web3/contracts');
+        const provider = getProvider();
+        if (provider) {
+          const actualNetwork = await provider.getNetwork();
+          const expectedChainId = parseInt(currentNetwork.chainId, 16);
+          
+          console.log('Web3Context: Network validation:', {
+            actual: actualNetwork.chainId,
+            expected: expectedChainId,
+            actualName: actualNetwork.name,
+            expectedName: currentNetwork.name
+          });
+          
+          if (actualNetwork.chainId !== expectedChainId) {
+            console.error('Web3Context: Wrong network detected');
+            setError(`Please switch to ${currentNetwork.name} (Chain ID: ${expectedChainId}) in MetaMask`);
+            setContractsInitialized(false);
+            setContractsChecked(true);
+            return;
+          }
+        }
+      } catch (networkError) {
+        console.error('Web3Context: Network validation failed:', networkError);
+        setError('Failed to validate network. Please check your MetaMask connection.');
+        setContractsInitialized(false);
+        setContractsChecked(true);
+        return;
+      }
+      
+      // Actually test the contract by calling a view function
+      try {
+        const { getSimpleBDAGTransferContract } = await import('@/integrations/web3/contracts');
+        const contract = getSimpleBDAGTransferContract();
+        
+        // Test the contract by calling owner function (which we confirmed works)
+        console.log('Web3Context: Testing contract with owner call...');
+        const owner = await contract.owner();
+        console.log('Web3Context: Contract test successful, owner:', owner);
+        
+        // If we get here, the contract is working
+        setContractsInitialized(true);
+        setContractAddresses({
+          simpleBDAGTransfer: '0x643859f45cC468e26d98917b086a7B50436f51db'
+        });
+        setContractsChecked(true);
+        
+        console.log('Web3Context: Contracts verified and marked as initialized');
+      } catch (contractError) {
+        console.error('Web3Context: Contract test failed:', contractError);
+        
+        // Contract test failed - set error and don't mark as initialized
+        setError('Smart contracts are not responding. Please check your network connection and try again.');
+        setContractsInitialized(false);
+        setContractsChecked(true);
+        
+        // Clear any cached contract addresses
+        setContractAddresses(null);
+      }
+    } catch (error) {
+      console.error('Web3Context: Error checking contract status:', error);
+      setError('Failed to verify smart contracts. Please try again.');
+      setContractsInitialized(false);
+      setContractsChecked(true);
+    }
+    
+    console.log('Web3Context: === CHECK CONTRACT STATUS END ===');
+  };
+
+  // Disconnect from Web3
   const disconnect = () => {
     setIsConnected(false);
     setAccount(null);
     setNetwork(null);
     setContractsInitialized(false);
     setContractAddresses(null);
-    setError(null);
     setIsWeb3Initialized(false);
+    setContractsChecked(false);
     
-    // Clear connection state from localStorage
+    // Clear localStorage
     localStorage.removeItem('web3_connected');
     localStorage.removeItem('web3_account');
     localStorage.removeItem('web3_network');
-    console.log('Web3Context: Connection state cleared from localStorage');
+    
+    console.log('Web3Context: Disconnected and cleared state');
   };
 
-  // Check contract initialization status
-  const checkContractStatus = async () => {
+  // Clear error
+  const clearError = () => {
+    setError(null);
+  };
+
+  // Get credit balance (simplified - returns 0 for now)
+  const getCreditBalance = async (address: string): Promise<number> => {
     try {
-      const status = await getContractStatus();
-      setContractsInitialized(status.initialized);
-      
-      if (status.initialized) {
-        const addresses = await getContractAddresses();
-        setContractAddresses(addresses);
-      }
-    } catch (err) {
-      console.error('Failed to check contract status:', err);
-      setContractsInitialized(false);
+      // For now, return 0 since we're not using credits anymore
+      // This function exists for compatibility with existing code
+      return 0;
+    } catch (error) {
+      console.error('Error getting credit balance:', error);
+      return 0;
     }
   };
 
-  // Handle account changes
-  useEffect(() => {
-    if (typeof window.ethereum !== 'undefined') {
-      const handleAccountsChanged = (accounts: string[]) => {
-        if (accounts.length === 0) {
-          // MetaMask is locked or user has no accounts
-          disconnect();
-        } else if (accounts[0] !== account) {
-          // Account changed
-          setAccount(accounts[0]);
+  // Mark profile setup as complete
+  const markProfileComplete = () => {
+    localStorage.setItem('userProfileComplete', 'true');
+    console.log('Web3Context: Profile setup marked as complete.');
+  };
+
+  // Switch network
+  const switchNetwork = async (networkName: 'mainnet' | 'testnet'): Promise<boolean> => {
+    try {
+      if (!window.ethereum) {
+        setError('MetaMask is not available');
+        return false;
+      }
+
+      const targetNetwork = networkName === 'testnet' ? 
+        { chainId: '0x413', name: 'Primordial BlockDAG Testnet' } : 
+        { chainId: '0x1', name: 'Ethereum Mainnet' };
+
+      try {
+        // Try to switch to the target network
+        await window.ethereum.request({
+          method: 'wallet_switchEthereumChain',
+          params: [{ chainId: targetNetwork.chainId }],
+        });
+        
+        console.log(`Switched to ${targetNetwork.name}`);
+        return true;
+      } catch (switchError: any) {
+        // This error code indicates that the chain has not been added to MetaMask
+        if (switchError.code === 4902) {
+          try {
+            await window.ethereum.request({
+              method: 'wallet_addEthereumChain',
+              params: [
+                {
+                  chainId: targetNetwork.chainId,
+                  chainName: targetNetwork.name,
+                  rpcUrls: networkName === 'testnet' ? 
+                    ['https://rpc.primordial.bdagscan.com'] : 
+                    ['https://mainnet.infura.io/v3/YOUR_INFURA_KEY'],
+                  blockExplorerUrls: networkName === 'testnet' ? 
+                    ['https://primordial.bdagscan.com'] : 
+                    ['https://etherscan.io'],
+                  nativeCurrency: {
+                    name: networkName === 'testnet' ? 'BDAG' : 'ETH',
+                    symbol: networkName === 'testnet' ? 'BDAG' : 'ETH',
+                    decimals: 18,
+                  },
+                },
+              ],
+            });
+            return true;
+          } catch (addError) {
+            console.error('Error adding network:', addError);
+            setError('Failed to add network to MetaMask');
+            return false;
+          }
+        } else {
+          console.error('Error switching network:', switchError);
+          setError('Failed to switch network');
+          return false;
         }
-      };
-
-      const handleChainChanged = (chainId: string) => {
-        // Reload the page when chain changes
-        window.location.reload();
-      };
-
-      const handleDisconnect = () => {
-        disconnect();
-      };
-
-      // Subscribe to events
-      window.ethereum.on('accountsChanged', handleAccountsChanged);
-      window.ethereum.on('chainChanged', handleChainChanged);
-      window.ethereum.on('disconnect', handleDisconnect);
-
-      // Cleanup
-      return () => {
-        window.ethereum.removeListener('accountsChanged', handleAccountsChanged);
-        window.ethereum.removeListener('chainChanged', handleChainChanged);
-        window.ethereum.removeListener('disconnect', handleDisconnect);
-      };
+      }
+    } catch (error) {
+      console.error('Network switching error:', error);
+      setError('Failed to switch network');
+      return false;
     }
+  };
+
+  // Debug: Monitor state changes
+  useEffect(() => {
+    console.log('Web3Context: State changed:', {
+      isConnected,
+      isWeb3Initialized,
+      account,
+      network,
+      contractsInitialized,
+      isInitializing
+    });
+  }, [isConnected, isWeb3Initialized, account, network, contractsInitialized, isInitializing]);
+
+  // Debug: Monitor contractsInitialized specifically
+  useEffect(() => {
+    console.log('Web3Context: contractsInitialized changed to:', contractsInitialized);
+  }, [contractsInitialized]);
+
+  // Trigger contract check when Web3 is initialized
+  useEffect(() => {
+    if (isWeb3Initialized && account && !contractsInitialized && !contractsChecked) {
+      console.log('Web3Context: Web3 initialized, triggering contract check...');
+      checkContractStatus(account);
+    }
+  }, [isWeb3Initialized, account, contractsInitialized, contractsChecked]);
+
+  // Context value
+  const contextValue: Web3ContextType = {
+    isConnected,
+    isInitializing,
+    isWeb3Initialized,
+    account,
+    network,
+    contractsInitialized,
+    contractAddresses,
+    connect,
+    disconnect,
+    switchNetwork,
+    getCreditBalance,
+    isMetaMaskAvailable: () => isMetaMaskAvailable(),
+    markProfileComplete,
+    error,
+    clearError,
+  };
+
+  // Listen for MetaMask account changes
+  useEffect(() => {
+    if (!window.ethereum) {
+      return;
+    }
+
+    const handleAccountsChanged = (accounts: string[]) => {
+      console.log('Web3Context: MetaMask accounts changed:', accounts);
+      
+      if (accounts.length === 0) {
+        // MetaMask disconnected
+        console.log('Web3Context: MetaMask disconnected');
+        disconnect();
+      } else if (accounts[0] !== account) {
+        // Account changed
+        console.log('Web3Context: MetaMask account changed from', account, 'to', accounts[0]);
+        setAccount(accounts[0]);
+        
+        // Update localStorage
+        if (accounts[0]) {
+          localStorage.setItem('web3_account', accounts[0]);
+        }
+      }
+    };
+
+    const handleChainChanged = (chainId: string) => {
+      console.log('Web3Context: MetaMask chain changed to:', chainId);
+      // You might want to handle network switching here
+    };
+
+    window.ethereum.on('accountsChanged', handleAccountsChanged);
+    window.ethereum.on('chainChanged', handleChainChanged);
+
+    return () => {
+      window.ethereum.removeListener('accountsChanged', handleAccountsChanged);
+      window.ethereum.removeListener('chainChanged', handleChainChanged);
+    };
   }, [account]);
 
-  // Auto-connect on mount if previously connected
+  // Auto-connect on mount if previously connected - SIMPLE VERSION
   useEffect(() => {
     const autoConnect = async () => {
+      // Don't auto-connect if we're already connected or contracts are already initialized
+      if (isConnected || isWeb3Initialized || contractsInitialized) {
+        console.log('Web3Context: Already connected or contracts initialized, skipping auto-connect');
+        return;
+      }
+      
+      
+      console.log('Web3Context: Attempting auto-connect...');
+      
       if (typeof window.ethereum !== 'undefined') {
         try {
           console.log('Web3Context: Starting auto-connect process...');
@@ -215,9 +486,9 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
               // Try to initialize contracts
               try {
                 console.log('Web3Context: Initializing contracts...');
-                await initializeWeb3();
+                await initializeWeb3(window.ethereum);
                 setIsWeb3Initialized(true);
-                await checkContractStatus();
+                // Don't call checkContractStatus here - it's already called in the main connect flow
                 console.log('Web3Context: Contracts initialized successfully');
               } catch (err) {
                 console.log('Web3Context: Contract initialization failed during auto-connect:', err);
@@ -246,7 +517,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
                   console.log('Web3Context: MetaMask on correct network, attempting to initialize...');
                   
                   try {
-                    const success = await initializeWeb3();
+                    const success = await initializeWeb3(window.ethereum);
                     if (success) {
                       setIsWeb3Initialized(true);
                       const currentAccount = await getCurrentAccount();
@@ -264,7 +535,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
                         console.log('Web3Context: Auto-detected connection saved to localStorage');
                       }
                       
-                      await checkContractStatus();
+                                             await checkContractStatus(currentAccount);
                     }
                   } catch (err) {
                     console.log('Web3Context: Failed to initialize existing MetaMask connection:', err);
@@ -289,31 +560,14 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     };
 
-    autoConnect();
-  }, []);
-
-  // Clear error
-  const clearError = () => setError(null);
-
-  const value: Web3ContextType = {
-    isConnected,
-    isInitializing,
-    isWeb3Initialized,
-    account,
-    network,
-    contractsInitialized,
-    contractAddresses,
-    connect,
-    disconnect,
-    switchNetwork,
-    addAndSwitchToPrimordialTestnet,
-    getCreditBalance,
-    error,
-    clearError,
-  };
+    // Delay auto-connect to ensure page is loaded
+    const timeoutId = setTimeout(autoConnect, 1000);
+    
+    return () => clearTimeout(timeoutId);
+  }, [isConnected, isWeb3Initialized, contractsInitialized, contractsChecked]);
 
   return (
-    <Web3Context.Provider value={value}>
+    <Web3Context.Provider value={contextValue}>
       {children}
     </Web3Context.Provider>
   );

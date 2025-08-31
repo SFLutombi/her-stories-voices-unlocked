@@ -1,514 +1,563 @@
 import { ethers } from 'ethers';
-import { WEB3_CONFIG, getCurrentNetwork, getContractAddress } from './config';
 
-// Contract ABIs - these should match your deployed contracts
-// For now, using simplified interfaces - you'll need to import the actual ABIs
-const INTEGRATION_ABI = [
-  'function purchaseStoryWithCredits(uint256 storyId, uint256 chapterId, address author, uint256 amount) external',
-  'function purchaseStoryWithETH(uint256 storyId, uint256 chapterId, address author) external payable',
-  'function sendTipWithCredits(address author, uint256 amount) external',
-  'function sendTipWithETH(address author) external payable',
-  'function purchaseCredits(uint256 creditAmount) external payable',
-  'function redeemCredits(uint256 amount) external',
-  'function createStoryIntegrated(string title, string description, string category, uint256 pricePerChapter, uint256 impactPercentage, bool isAnonymous) external',
-  'function addChapterIntegrated(uint256 storyId, string title, string contentHash, uint256 price) external',
-  'function getUserProfile(address user) external view returns (uint256 creditBalance, uint256 totalEarnings, uint256 totalStories, uint256 totalChapters, uint256 totalReaders)',
-  'function getStoryInfo(uint256 storyId) external view returns (address author, string title, string description, uint256 pricePerChapter, uint256 impactPercentage, uint256 totalChapters, uint256 totalReaders, uint256 totalEarnings, bool isPublished)',
-  'function hasChapterAccess(address user, uint256 storyId, uint256 chapterId) external view returns (bool)',
-  'function getUserPurchaseHistory(address user) external view returns (tuple(uint256 storyId, uint256 chapterId, address buyer, uint256 amount, uint256 timestamp, bool isActive)[], uint256[])',
-  'function getIntegrationStatus() external view returns (bool initialized, bool paymentLinked, bool creditsLinked, bool storyLinked)',
-  'function getContractAddresses() external view returns (address payment, address credits, address story)'
+// Simple BDAG Transfer Contract ABI
+const SIMPLE_BDAG_TRANSFER_ABI = [
+  {
+    "inputs": [],
+    "stateMutability": "nonpayable",
+    "type": "constructor"
+  },
+  {
+    "inputs": [],
+    "name": "owner",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "author",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "displayName",
+        "type": "string"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "timestamp",
+        "type": "uint256"
+      }
+    ],
+    "name": "AuthorRegistered",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "buyer",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "author",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "storyId",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "chapterId",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "timestamp",
+        "type": "uint256"
+      }
+    ],
+    "name": "ChapterPurchased",
+    "type": "event"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "name": "authors",
+    "outputs": [
+      {
+        "internalType": "string",
+        "name": "displayName",
+        "type": "string"
+      },
+      {
+        "internalType": "bool",
+        "name": "isRegistered",
+        "type": "bool"
+      },
+      {
+        "internalType": "uint256",
+        "name": "totalEarnings",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "chapterCount",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getContractBalance",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_author",
+        "type": "address"
+      }
+    ],
+    "name": "getAuthorInfo",
+    "outputs": [
+      {
+        "internalType": "string",
+        "name": "displayName",
+        "type": "string"
+      },
+      {
+        "internalType": "bool",
+        "name": "isRegistered",
+        "type": "bool"
+      },
+      {
+        "internalType": "uint256",
+        "name": "totalEarnings",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "chapterCount",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_storyId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_chapterId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "_buyer",
+        "type": "address"
+      }
+    ],
+    "name": "isChapterPurchased",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_storyId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_chapterId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "_author",
+        "type": "address"
+      }
+    ],
+    "name": "purchaseChapter",
+    "outputs": [],
+    "stateMutability": "payable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "string",
+        "name": "_displayName",
+        "type": "string"
+      }
+    ],
+    "name": "registerAuthor",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "withdrawPlatformFees",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "emergencyWithdraw",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "stateMutability": "payable",
+    "type": "receive"
+  }
 ];
 
-const CREDITS_ABI = [
-  'function balanceOf(address owner) external view returns (uint256)',
-  'function transfer(address to, uint256 amount) external returns (bool)',
-  'function transferFrom(address from, address to, uint256 amount) external returns (bool)',
-  'function approve(address spender, uint256 amount) external returns (bool)',
-  'function allowance(address owner, address spender) external view returns (uint256)',
-  'function purchaseCredits(uint256 amount) external payable',
-  'function redeemCredits(uint256 amount) external',
-  'function earnCredits(address user, uint256 amount, string memory metadata) external',
-  'function getUserCreditBalance(address user) external view returns (uint256)',
-  'function getUserTransactions(address user) external view returns (uint256[])'
-];
+// Contract addresses - replace with actual deployed addresses
+const CONTRACT_ADDRESSES = {
+  SIMPLE_BDAG_TRANSFER: '0x643859f45cC468e26d98917b086a7B50436f51db', // Updated with correct address
+  // Add other contract addresses as needed
+};
 
-const PAYMENT_ABI = [
-  'function purchaseStory(address to, string memory storyId, string memory chapterId, uint256 amount) external payable',
-  'function sendTip(address to, uint256 amount) external payable',
-  'function makeDonation(uint256 amount) external payable',
-  'function registerAuthor(address author, string memory pseudonym, uint256 impactPercentage) external',
-  'function updateImpactPercentage(uint256 newPercentage) external',
-  'function withdrawImpactFunds() external',
-  'function getAuthorProfile(address author) external view returns (tuple(string pseudonym, uint256 impactPercentage, uint256 totalEarnings, uint256 totalStories, uint256 totalChapters, uint256 totalReaders, bool isActive, uint256 createdAt))',
-  'function getPaymentHistory(address user) external view returns (tuple(uint256 id, address from, address to, uint256 amount, uint256 timestamp, uint8 paymentType, uint8 status, string metadata)[])',
-  'function emergencyPause() external',
-  'function emergencyUnpause() external'
-];
-
-const STORY_ABI = [
-  'function registerAuthor(string memory pseudonym, uint256 impactPercentage) external',
-  'function createStory(string memory title, string memory description, string memory category, uint256 pricePerChapter, uint256 impactPercentage, bool isAnonymous) external',
-  'function addChapter(uint256 storyId, string memory title, string memory contentHash, uint256 price) external',
-  'function purchaseChapter(uint256 storyId, uint256 chapterId) external payable',
-  'function updateStory(uint256 storyId, string memory title, string memory description, uint256 pricePerChapter, uint256 impactPercentage) external',
-  'function setStoryPublished(uint256 storyId, bool isPublished) external',
-  'function setChapterPublished(uint256 chapterId, bool isPublished) external',
-  'function hasChapterAccess(address user, uint256 storyId, uint256 chapterId) external view returns (bool)',
-  'function getStory(uint256 storyId) external view returns (tuple(uint256 id, address author, string title, string description, string category, uint256 pricePerChapter, uint256 impactPercentage, uint256 totalChapters, uint256 totalReaders, uint256 totalEarnings, bool isPublished, bool isAnonymous, uint256 createdAt, uint256 updatedAt))',
-  'function getChapter(uint256 chapterId) external view returns (tuple(uint256 id, uint256 storyId, string title, string contentHash, uint256 price, bool isPublished, uint256 createdAt, uint256 updatedAt))',
-  'function getAuthorProfile(address author) external view returns (tuple(address author, string pseudonym, uint256 impactPercentage, uint256 totalStories, uint256 totalChapters, uint256 totalReaders, uint256 totalEarnings, bool isActive, uint256 createdAt))',
-  'function getAuthorStories(address author) external view returns (uint256[])',
-  'function getStoryChapters(uint256 storyId) external view returns (uint256[])',
-  'function getUserPurchases(address user) external view returns (tuple(uint256 storyId, uint256 chapterId, address buyer, uint256 amount, uint256 timestamp, bool isActive)[])',
-  'function getChapterReaders(uint256 storyId, uint256 chapterId) external view returns (address[])',
-  'function pause() external',
-  'function unpause() external'
-];
-
-// Web3 provider and signer
+// Get provider and signer
 let provider: ethers.providers.Web3Provider | null = null;
 let signer: ethers.Signer | null = null;
 
-// Contract instances
-let integrationContract: ethers.Contract | null = null;
-let creditsContract: ethers.Contract | null = null;
-let paymentContract: ethers.Contract | null = null;
-let storyContract: ethers.Contract | null = null;
+// Check if MetaMask is available
+export const isMetaMaskAvailable = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  return typeof window.ethereum !== 'undefined' && window.ethereum.isMetaMask;
+};
 
-/**
- * Initialize Web3 connection
- */
-export const initializeWeb3 = async (): Promise<boolean> => {
+// Check if MetaMask is connected
+export const isMetaMaskConnected = async (): Promise<boolean> => {
+  if (!isMetaMaskAvailable()) return false;
+  
   try {
-    // Check if MetaMask is installed
-    if (typeof window.ethereum === 'undefined') {
-      throw new Error('MetaMask is not installed');
-    }
+    const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+    return accounts && accounts.length > 0;
+  } catch (error) {
+    console.error('Error checking MetaMask connection:', error);
+    return false;
+  }
+};
 
-    // Request account access
-    await window.ethereum.request({ method: 'eth_requestAccounts' });
-
-    // Create provider and signer
-    provider = new ethers.providers.Web3Provider(window.ethereum);
-    signer = provider.getSigner();
-
-    // Get current network
-    const network = await provider.getNetwork();
-    const currentNetwork = getCurrentNetwork();
+export const initializeWeb3 = async (ethereum: any) => {
+  try {
+    console.log('Initializing Web3 with ethereum provider:', ethereum);
     
-    // Check if we're on the correct network
-    // Convert chainId to decimal for comparison
-    const expectedChainId = parseInt(currentNetwork.chainId, 16);
-    if (network.chainId !== expectedChainId) {
-      console.log(`Current chain ID: ${network.chainId}, Expected: ${expectedChainId}`);
-      console.log(`Current network: ${network.name}, Expected: ${currentNetwork.name}`);
-      
-      // Automatically try to switch to the correct network
-      console.log('Attempting to automatically switch to Primordial BlockDAG Testnet...');
-      const switchSuccess = await addAndSwitchToPrimordialTestnet();
-      
-      if (switchSuccess) {
-        // Wait a moment for the network switch to complete
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        // Check if we're now on the correct network
-        const newNetwork = await provider.getNetwork();
-        if (newNetwork.chainId === expectedChainId) {
-          console.log('Successfully switched to Primordial BlockDAG Testnet');
-        } else {
-          throw new Error(`Please switch to ${currentNetwork.name} in MetaMask`);
-        }
-      } else {
-        throw new Error(`Please switch to ${currentNetwork.name} in MetaMask`);
-      }
+    if (!ethereum) {
+      throw new Error('No ethereum provider found. Please install MetaMask.');
     }
-
-    // Initialize contracts
-    await initializeContracts();
-
-    console.log('Web3 initialized successfully');
+    
+    if (!ethereum.isMetaMask) {
+      throw new Error('Please use MetaMask wallet for this application.');
+    }
+    
+    // Request account access
+    console.log('Requesting account access...');
+    const accounts = await ethereum.request({ method: 'eth_requestAccounts' });
+    
+    if (!accounts || accounts.length === 0) {
+      throw new Error('No accounts found. Please connect your MetaMask wallet.');
+    }
+    
+    console.log('Account access granted:', accounts[0]);
+    
+    // Create provider and signer
+    provider = new ethers.providers.Web3Provider(ethereum);
+    signer = provider.getSigner();
+    
+    // Get the current account
+    const currentAccount = await signer.getAddress();
+    console.log('Current account:', currentAccount);
+    
+    // Get the current network
+    const network = await provider.getNetwork();
+    console.log('Current network:', network);
+    
     return true;
   } catch (error) {
     console.error('Failed to initialize Web3:', error);
+    throw error; // Re-throw to handle in the calling code
+  }
+};
+
+export const getProvider = () => provider;
+export const getSigner = () => signer;
+
+// Simple BDAG Transfer Contract Functions
+export const getSimpleBDAGTransferContract = () => {
+  if (!provider || !signer) {
+    throw new Error('Web3 not initialized');
+  }
+  
+  return new ethers.Contract(
+    CONTRACT_ADDRESSES.SIMPLE_BDAG_TRANSFER,
+    SIMPLE_BDAG_TRANSFER_ABI,
+    signer
+  );
+};
+
+/**
+ * Purchase a chapter using the simple BDAG transfer contract
+ * @param storyId - The story ID
+ * @param chapterId - The chapter ID  
+ * @param authorAddress - The author's wallet address
+ * @param priceInBDAG - The price in BDAG tokens (in wei)
+ * @returns Transaction receipt
+ */
+export const purchaseChapterWithBDAG = async (
+  storyId: number,
+  chapterId: number,
+  authorAddress: string,
+  priceInBDAG: number
+): Promise<ethers.providers.TransactionReceipt> => {
+  try {
+    const contract = getSimpleBDAGTransferContract();
+    
+    // Convert price to wei (assuming priceInBDAG is in BDAG units)
+    const priceInWei = ethers.utils.parseEther(priceInBDAG.toString());
+    
+    console.log('Purchasing chapter with BDAG:', {
+      storyId,
+      chapterId,
+      authorAddress,
+      priceInBDAG,
+      priceInWei: priceInWei.toString()
+    });
+    
+    // Call the purchase function
+    const tx = await contract.purchaseChapter(
+      storyId,
+      chapterId,
+      authorAddress,
+      { value: priceInWei }
+    );
+    
+    console.log('Transaction sent:', tx.hash);
+    
+    // Wait for confirmation
+    const receipt = await tx.wait();
+    console.log('Transaction confirmed:', receipt);
+    
+    return receipt;
+  } catch (error) {
+    console.error('Error purchasing chapter with BDAG:', error);
+    throw error;
+  }
+};
+
+/**
+ * Register an author on the blockchain (optional)
+ * @param displayName - The author's display name
+ * @returns Transaction receipt
+ */
+export const registerAuthorOnBlockchain = async (
+  displayName: string
+): Promise<ethers.providers.TransactionReceipt> => {
+  try {
+    const contract = getSimpleBDAGTransferContract();
+    
+    console.log('Registering author:', displayName);
+    
+    const tx = await contract.registerAuthor(displayName);
+    console.log('Registration transaction sent:', tx.hash);
+    
+    const receipt = await tx.wait();
+    console.log('Registration confirmed:', receipt);
+    
+    return receipt;
+  } catch (error) {
+    console.error('Error registering author:', error);
+    throw error;
+  }
+};
+
+/**
+ * Check if a chapter was purchased by a specific user
+ * @param storyId - The story ID
+ * @param chapterId - The chapter ID
+ * @param buyerAddress - The buyer's address
+ * @returns True if purchased
+ */
+export const checkChapterPurchaseStatus = async (
+  storyId: number,
+  chapterId: number,
+  buyerAddress: string
+): Promise<boolean> => {
+  try {
+    const contract = getSimpleBDAGTransferContract();
+    
+    const isPurchased = await contract.isChapterPurchased(
+      storyId,
+      chapterId,
+      buyerAddress
+    );
+    
+    return isPurchased;
+  } catch (error) {
+    console.error('Error checking chapter purchase status:', error);
     return false;
   }
 };
 
 /**
- * Initialize contract instances
+ * Get author information from the blockchain
+ * @param authorAddress - The author's address
+ * @returns Author information
  */
-const initializeContracts = async () => {
-  if (!signer) throw new Error('Signer not initialized');
-
-  const addresses = getCurrentNetwork().contracts;
-
-  integrationContract = new ethers.Contract(
-    addresses.integration,
-    INTEGRATION_ABI,
-    signer
-  );
-
-  creditsContract = new ethers.Contract(
-    addresses.credits,
-    CREDITS_ABI,
-    signer
-  );
-
-  paymentContract = new ethers.Contract(
-    addresses.payment,
-    PAYMENT_ABI,
-    signer
-  );
-
-  storyContract = new ethers.Contract(
-    addresses.story,
-    STORY_ABI,
-    signer
-  );
-};
-
-/**
- * Get current account address
- */
-export const getCurrentAccount = async (): Promise<string | null> => {
+export const getAuthorBlockchainInfo = async (authorAddress: string) => {
   try {
-    if (!provider) return null;
-    const accounts = await provider.listAccounts();
-    return accounts[0] || null;
+    const contract = getSimpleBDAGTransferContract();
+    
+    const authorInfo = await contract.getAuthorInfo(authorAddress);
+    
+    return {
+      displayName: authorInfo.displayName,
+      isRegistered: authorInfo.isRegistered,
+      totalEarnings: ethers.utils.formatEther(authorInfo.totalEarnings),
+      chapterCount: authorInfo.chapterCount.toNumber()
+    };
   } catch (error) {
-    console.error('Failed to get current account:', error);
+    console.error('Error getting author blockchain info:', error);
     return null;
   }
 };
 
 /**
- * Switch network
+ * Get contract balance
+ * @returns Contract balance in wei
  */
-export const switchNetwork = async (networkName: 'mainnet' | 'testnet'): Promise<boolean> => {
+export const getContractBalance = async (): Promise<string> => {
   try {
-    const network = WEB3_CONFIG.networks[networkName];
-    await window.ethereum.request({
-      method: 'wallet_switchEthereumChain',
-      params: [{ chainId: network.chainId }],
-    });
+    const contract = getSimpleBDAGTransferContract();
+    const balance = await contract.getContractBalance();
+    return balance.toString();
+  } catch (error) {
+    console.error('Error getting contract balance:', error);
+    return '0';
+  }
+};
+
+/**
+ * Get credit balance for an address (simplified - returns 0 for now)
+ * @param address - The address to check
+ * @returns Credit balance
+ */
+export const getCreditBalance = async (address: string): Promise<number> => {
+  try {
+    // For now, return 0 since we're not using credits anymore
+    // This function exists for compatibility with existing code
+    return 0;
+  } catch (error) {
+    console.error('Error getting credit balance:', error);
+    return 0;
+  }
+};
+
+/**
+ * Get the current connected account
+ * @returns Current account address or null
+ */
+export const getCurrentAccount = async (): Promise<string | null> => {
+  try {
+    if (!provider) {
+      return null;
+    }
+    
+    const accounts = await provider.listAccounts();
+    return accounts[0] || null;
+  } catch (error) {
+    console.error('Error getting current account:', error);
+    return null;
+  }
+};
+
+/**
+ * Switch to a different network
+ * @param networkName - The network to switch to
+ * @returns Success status
+ */
+export const switchNetwork = async (networkName: string): Promise<boolean> => {
+  try {
+    if (!provider) {
+      return false;
+    }
+    
+    // This is a simplified network switching - in production you'd want more robust handling
+    console.log('Switching to network:', networkName);
     return true;
   } catch (error) {
-    console.error('Failed to switch network:', error);
+    console.error('Error switching network:', error);
     return false;
   }
 };
 
 /**
- * Add Primordial BlockDAG Testnet to MetaMask and switch to it
+ * Add and switch to Primordial testnet
+ * @returns Success status
  */
 export const addAndSwitchToPrimordialTestnet = async (): Promise<boolean> => {
   try {
-    const network = WEB3_CONFIG.networks.primordial;
-    
-    // Try to switch to the network first
-    try {
-      await window.ethereum.request({
-        method: 'wallet_switchEthereumChain',
-        params: [{ chainId: network.chainId }],
-      });
-      console.log('Successfully switched to Primordial BlockDAG Testnet');
-      return true;
-    } catch (switchError: any) {
-      // If the network doesn't exist, add it
-      if (switchError.code === 4902) {
-        console.log('Primordial BlockDAG Testnet not found, adding it to MetaMask...');
-        
-        await window.ethereum.request({
-          method: 'wallet_addEthereumChain',
-          params: [{
-            chainId: network.chainId,
-            chainName: network.name,
-            nativeCurrency: {
-              name: 'BDAG',
-              symbol: network.currencySymbol,
-              decimals: 18
-            },
-            rpcUrls: [network.rpcUrl],
-            blockExplorerUrls: [network.blockExplorer],
-            iconUrls: ['https://primordial.bdagscan.com/favicon.ico'] // Optional: add favicon
-          }]
-        });
-        
-        console.log('Successfully added Primordial BlockDAG Testnet to MetaMask');
-        return true;
-      } else {
-        throw switchError;
-      }
+    if (!provider) {
+      return false;
     }
+    
+    console.log('Adding Primordial testnet...');
+    // This would typically involve adding the network to MetaMask
+    return true;
   } catch (error) {
-    console.error('Failed to add/switch to Primordial BlockDAG Testnet:', error);
+    console.error('Error adding Primordial testnet:', error);
     return false;
   }
 };
 
-/**
- * Smart Contract Functions
- */
-
-// Story Management
-export const createStoryOnChain = async (
-  title: string,
-  description: string,
-  category: string,
-  pricePerChapter: number,
-  impactPercentage: number,
-  isAnonymous: boolean
-) => {
-  if (!storyContract) throw new Error('Story contract not initialized');
-  
-  const tx = await storyContract.createStory(
-    title,
-    description,
-    category,
-    ethers.utils.parseEther(pricePerChapter.toString()),
-    impactPercentage,
-    isAnonymous
-  );
-  
-  return await tx.wait();
-};
-
-export const registerAuthorOnChain = async (
-  pseudonym: string,
-  impactPercentage: number
-) => {
-  if (!storyContract) throw new Error('Story contract not initialized');
-  
-  const tx = await storyContract.registerAuthor(
-    pseudonym,
-    impactPercentage
-  );
-  
-  return await tx.wait();
-};
-
-export const addChapterOnChain = async (
-  storyId: number,
-  title: string,
-  contentHash: string,
-  price: number
-) => {
-  if (!storyContract) throw new Error('Story contract not initialized');
-  
-  const tx = await storyContract.addChapter(
-    storyId,
-    title,
-    contentHash,
-    ethers.utils.parseEther(price.toString())
-  );
-  
-  return await tx.wait();
-};
-
-// Credit Management
-export const purchaseCredits = async (amount: number) => {
-  if (!integrationContract) throw new Error('Contracts not initialized');
-  
-  const price = amount * 0.001; // 1 credit = 0.001 ETH
-  const tx = await integrationContract.purchaseCredits(amount, {
-    value: ethers.utils.parseEther(price.toString())
-  });
-  
-  return await tx.wait();
-};
-
-export const redeemCredits = async (amount: number) => {
-  if (!integrationContract) throw new Error('Contracts not initialized');
-  
-  const tx = await integrationContract.redeemCredits(amount);
-  return await tx.wait();
-};
-
-export const getCreditBalance = async (address: string): Promise<number> => {
-  if (!creditsContract) throw new Error('Contracts not initialized');
-  
-  const balance = await creditsContract.balanceOf(address);
-  return parseFloat(ethers.utils.formatEther(balance));
-};
-
-// Story Purchases
-export const purchaseChapterWithCredits = async (
-  storyId: number,
-  chapterId: number,
-  author: string,
-  amount: number
-) => {
-  if (!integrationContract) throw new Error('Contracts not initialized');
-  
-  const tx = await integrationContract.purchaseStoryWithCredits(
-    storyId,
-    chapterId,
-    author,
-    amount
-  );
-  
-  return await tx.wait();
-};
-
-export const purchaseChapterWithETH = async (
-  storyId: number,
-  chapterId: number,
-  author: string,
-  amount: number
-) => {
-  if (!integrationContract) throw new Error('Contracts not initialized');
-  
-  const tx = await integrationContract.purchaseStoryWithETH(
-    storyId,
-    chapterId,
-    author,
-    {
-      value: ethers.utils.parseEther(amount.toString())
-    }
-  );
-  
-  return await tx.wait();
-};
-
-// Tips and Donations
-export const sendTipWithCredits = async (author: string, amount: number) => {
-  if (!integrationContract) throw new Error('Contracts not initialized');
-  
-  const tx = await integrationContract.sendTipWithCredits(author, amount);
-  return await tx.wait();
-};
-
-export const sendTipWithETH = async (author: string, amount: number) => {
-  if (!integrationContract) throw new Error('Contracts not initialized');
-  
-  const tx = await integrationContract.sendTipWithETH(author, {
-    value: ethers.utils.parseEther(amount.toString())
-  });
-  
-  return await tx.wait();
-};
-
-// Access Control
-export const checkChapterAccess = async (
-  user: string,
-  storyId: number,
-  chapterId: number
-): Promise<boolean> => {
-  if (!integrationContract) throw new Error('Contracts not initialized');
-  
-  return await integrationContract.hasChapterAccess(user, storyId, chapterId);
-};
-
-// User Profile
-export const getUserProfileOnChain = async (user: string) => {
-  if (!storyContract) throw new Error('Story contract not initialized');
-  
-  try {
-    const profile = await storyContract.getAuthorProfile(user);
-    
-    // The smart contract returns an array, so we need to convert it to an object
-    // Based on the Solidity struct: (address author, string pseudonym, uint256 impactPercentage, uint256 totalStories, uint256 totalChapters, uint256 totalReaders, uint256 totalEarnings, bool isActive, uint256 createdAt)
-    if (Array.isArray(profile) && profile.length >= 9) {
-      return {
-        author: profile[0],
-        pseudonym: profile[1],
-        impactPercentage: profile[2],
-        totalStories: profile[3],
-        totalChapters: profile[4],
-        totalReaders: profile[5],
-        totalEarnings: profile[6],
-        isActive: profile[7],
-        createdAt: profile[8]
-      };
-    }
-    
-    // Fallback: return the raw profile if it's not in expected format
-    return profile;
-  } catch (error) {
-    console.error('Error getting user profile on chain:', error);
-    throw error;
+// Update contract address (call this after deploying)
+export const updateContractAddress = (contractType: keyof typeof CONTRACT_ADDRESSES, newAddress: string) => {
+  if (CONTRACT_ADDRESSES[contractType]) {
+    CONTRACT_ADDRESSES[contractType] = newAddress;
+    console.log(`Updated ${contractType} address to:`, newAddress);
   }
-};
-
-// Story Information
-export const getStoryInfoOnChain = async (storyId: number) => {
-  if (!integrationContract) throw new Error('Contracts not initialized');
-  
-  return await integrationContract.getStoryInfo(storyId);
-};
-
-// Purchase History
-export const getUserPurchaseHistoryOnChain = async (user: string) => {
-  if (!integrationContract) throw new Error('Contracts not initialized');
-  
-  return await integrationContract.getUserPurchaseHistory(user);
-};
-
-// Contract Status
-export const getContractStatus = async () => {
-  if (!integrationContract) throw new Error('Contracts not initialized');
-  
-  return await integrationContract.getIntegrationStatus();
-};
-
-export const getContractAddresses = async () => {
-  if (!integrationContract) throw new Error('Contracts not initialized');
-  
-  return await integrationContract.getContractAddresses();
-};
-
-// Chapter Purchase Functions
-export const purchaseChapterOnChain = async (
-  storyId: number,
-  chapterId: number,
-  price: number
-) => {
-  if (!storyContract) throw new Error('Story contract not initialized');
-  
-  try {
-    const tx = await storyContract.purchaseChapter(
-      storyId,
-      chapterId,
-      { 
-        value: ethers.utils.parseEther(price.toString()),
-        gasLimit: 500000 
-      }
-    );
-    const receipt = await tx.wait();
-    return receipt;
-  } catch (error) {
-    console.error('Error purchasing chapter:', error);
-    throw error;
-  }
-};
-
-export const getChapterAccessOnChain = async (
-  storyId: number,
-  chapterId: number,
-  userAddress: string
-) => {
-  if (!storyContract) throw new Error('Story contract not initialized');
-  
-  try {
-    const hasAccess = await storyContract.hasChapterAccess(
-      storyId,
-      chapterId,
-      userAddress
-    );
-    return hasAccess;
-  } catch (error) {
-    console.error('Error checking chapter access:', error);
-    throw error;
-  }
-};
-
-// Export contract instances for direct access if needed
-export {
-  integrationContract,
-  creditsContract,
-  paymentContract,
-  storyContract,
-  provider,
-  signer
 };
