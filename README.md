@@ -2,7 +2,7 @@
 
 "South African women's stories — whether novels, survival stories, or life lessons — are often undervalued or silenced. HerStories lets women publish, share, and monetize their words one chapter at a time."
 
-## 🎥 Demo Video
+## 🎬 Demo Video
 
 👉 [Watch Demo](#)  
 👉 [Live App](#)
@@ -72,13 +72,13 @@ This isn't just scaling within South Africa — it's a continent-wide storytelli
 - Transparency means readers know their money is empowering women, not enriching a platform
 - MetaMask + blockchain explorer power instant payouts and visible proof of support
 
-## 🖼️ System Overview
+## 🔄 System Overview
 
 ```
 Reader → Chapter Purchase → Smart Contract → Blockchain Payment → Author Wallet
 ```
 
-## 👩‍💻 Developer Guide
+## 👨‍💻 Developer Guide
 
 ### 🚀 Quickstart
 
@@ -98,7 +98,7 @@ cp .env.example .env.local
 npm run dev
 ```
 
-### 📜 Smart Contract Structure
+### 📋 Smart Contract Structure
 
 **HerStoriesStory.sol**
 - `publishChapter()` → Uploads metadata & sets price
@@ -132,7 +132,7 @@ npx hardhat deploy --network testnet
 npx hardhat deploy --network mainnet
 ```
 
-### 🌍 Environment Variables
+### ⚙️ Environment Variables
 
 Create `.env.local` file:
 
@@ -149,7 +149,7 @@ VITE_CONTRACT_ADDRESSES={"story":"0x...","credits":"0x...","payment":"0x..."}
 VITE_IPFS_GATEWAY=https://ipfs.io/ipfs/
 ```
 
-### 🔗 API Endpoints
+### 🔌 API Endpoints
 
 - `POST /api/publish` → Upload new chapter metadata
 - `POST /api/buy` → Execute smart contract purchase
@@ -197,7 +197,7 @@ git push origin feature/your-feature
 
 **Guidelines**: Use TypeScript, Tailwind CSS, Shadcn/ui components, and conventional commits.
 
-## 🌍 How You Can Help
+## 🌟 How You Can Help
 
 HerStories has abstracted away the crypto complexity. Readers pay seamlessly, authors receive seamlessly — all powered by blockchain under the hood.
 
