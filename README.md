@@ -74,7 +74,7 @@ Existing platforms like Wattpad, Medium, or Patreon give writers exposure — bu
 
 **Ultra-low transaction costs** – micro-chapters (a few cents each) make storytelling from every community accessible and financially viable.
 
-This isn't just scaling within South Africa — it's a continent-wide and global storytelling economy, where overlooked voices are empowered, readers can participate affordably, and the platform grows sustainably across borders.
+This isn't just scaling within South Africa, it's a continent-wide and global storytelling economy, where overlooked voices are empowered, readers can participate affordably, and the platform grows sustainably across borders.
 
 ## 🔄 System Overview
 
